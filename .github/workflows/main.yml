@@ -22,20 +22,20 @@ jobs:
           sudo sed -i 's/^Types: deb$/Types: deb deb-src/' /etc/apt/sources.list.d/ubuntu.sources || true
           sudo apt-get update
           sudo apt-get build-dep -y ardour
-          sudo apt-get install -y python3 git build-essential pkg-config libarchive-dev libwebsockets-dev
+          sudo apt-get install -y python3 git build-essential pkg-config libarchive-dev libwebsockets-dev libcppunit-dev
 
-      - name: Configure
+      - name: Configure (Optimized)
         run: |
-          python3 waf configure --optimize --freedesktop
+          python3 waf configure --optimize --freedesktop --no-nls --cxx11
 
       - name: Compile
         run: |
-          python3 waf -j$(nproc)
+          # Use -k (keep going) so non-fatal sub-target warnings don't fail the entire build
+          python3 waf -j$(nproc) -k || python3 waf -j1
 
       - name: Bundle Executables
         run: |
           mkdir -p release_build
-          # Copy compiled output targets safely without throwing exit errors on optional missing folders
           cp -r build/gtk2_ardour release_build/ 2>/dev/null || true
           cp -r build/libs release_build/ 2>/dev/null || true
 
