@@ -9,34 +9,36 @@ jobs:
     runs-on: ubuntu-24.04
 
     steps:
-      - name: Checkout Repository
+      - name: Checkout Repository with Submodules
         uses: actions/checkout@v4
+        with:
+          submodules: recursive
+          fetch-depth: 0
 
-      - name: Enable Source Repositories & Install Dependencies
+      - name: Install System Dependencies
         env:
           DEBIAN_FRONTEND: noninteractive
         run: |
-          # Enable deb-src repositories so apt build-dep works
+          # Enable deb-src repositories
           sudo sed -i 's/^Types: deb$/Types: deb deb-src/' /etc/apt/sources.list.d/ubuntu.sources || true
           sudo apt-get update
           
-          # Automatically fetch all official build dependencies for Ardour
+          # Install official build dependencies and build tool primitives
           sudo apt-get build-dep -y ardour
-          
-          # Ensure python3 and Waf build essentials are ready
-          sudo apt-get install -y python3 git build-essential
+          sudo apt-get install -y python3 git build-essential pkg-config libarchive-dev libwebsockets-dev
 
       - name: Configure (Release / Optimized)
-        run: ./waf configure --optimize
+        run: |
+          python3 waf configure --optimize --freedesktop --cxx11
 
       - name: Compile
-        run: ./waf -j$(nproc)
+        run: |
+          python3 waf -j$(nproc)
 
       - name: Bundle Executables
         run: |
           mkdir -p release_build
-          cp -r build/gtk2_ardour release_build/
-          cp -r build/libs release_build/
+          cp -r build/gtk2_ardour release_build/ || cp -r build/libs release_build/
 
       - name: Upload Binary Artifact
         uses: actions/upload-artifact@v4
