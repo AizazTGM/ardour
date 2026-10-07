@@ -24,14 +24,14 @@ jobs:
           sudo apt-get build-dep -y ardour
           sudo apt-get install -y python3 git build-essential pkg-config libarchive-dev libwebsockets-dev libcppunit-dev
 
-      - name: Configure (Optimized)
+      - name: Configure
         run: |
-          python3 waf configure --optimize --freedesktop --no-nls --cxx11
+          python3 waf configure --optimize --freedesktop --no-nls
 
-      - name: Compile
+      - name: Compile with Debug Logs
         run: |
-          # Use -k (keep going) so non-fatal sub-target warnings don't fail the entire build
-          python3 waf -j$(nproc) -k || python3 waf -j1
+          # If compilation fails, print the tail of config.log and failure details
+          python3 waf -j$(nproc) || (echo "=== WAF LOG EXCERPT ===" && tail -n 100 build/config.log && exit 1)
 
       - name: Bundle Executables
         run: |
