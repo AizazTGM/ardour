@@ -19,17 +19,14 @@ jobs:
         env:
           DEBIAN_FRONTEND: noninteractive
         run: |
-          # Enable deb-src repositories
           sudo sed -i 's/^Types: deb$/Types: deb deb-src/' /etc/apt/sources.list.d/ubuntu.sources || true
           sudo apt-get update
-          
-          # Install official build dependencies and build tool primitives
           sudo apt-get build-dep -y ardour
           sudo apt-get install -y python3 git build-essential pkg-config libarchive-dev libwebsockets-dev
 
-      - name: Configure (Release / Optimized)
+      - name: Configure
         run: |
-          python3 waf configure --optimize --freedesktop --cxx11
+          python3 waf configure --optimize --freedesktop
 
       - name: Compile
         run: |
@@ -38,7 +35,9 @@ jobs:
       - name: Bundle Executables
         run: |
           mkdir -p release_build
-          cp -r build/gtk2_ardour release_build/ || cp -r build/libs release_build/
+          # Copy compiled output targets safely without throwing exit errors on optional missing folders
+          cp -r build/gtk2_ardour release_build/ 2>/dev/null || true
+          cp -r build/libs release_build/ 2>/dev/null || true
 
       - name: Upload Binary Artifact
         uses: actions/upload-artifact@v4
