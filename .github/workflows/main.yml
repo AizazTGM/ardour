@@ -62,25 +62,30 @@ jobs:
 
           export WAF_NO_PREFORK=1
 
-          # Ensure UCRT64 toolchain binaries are first in PATH
           export PATH="/ucrt64/bin:${MINGW_PREFIX}/bin:${PATH}"
 
           if [ -d "${MINGW_PREFIX}/lib/ccache/bin" ]; then
             export PATH="${MINGW_PREFIX}/lib/ccache/bin:${PATH}"
           fi
 
-          export CC="gcc"
-          export CXX="g++"
-          export AR="ar"
-          export RANLIB="ranlib"
-          export STRIP="strip"
-          export WINDRES="windres"
+          # Fast sanity check: confirm binaries are reachable in shell
+          which gcc || echo "gcc not found in PATH"
+          which g++ || echo "g++ not found in PATH"
 
-          export PKG_CONFIG="pkg-config"
+          # Force absolute paths for compiler drivers
+          export CC="/ucrt64/bin/gcc.exe"
+          export CXX="/ucrt64/bin/g++.exe"
+          export AR="/ucrt64/bin/ar.exe"
+          export RANLIB="/ucrt64/bin/ranlib.exe"
+          export STRIP="/ucrt64/bin/strip.exe"
+          export WINDRES="/ucrt64/bin/windres.exe"
+
+          export PKG_CONFIG="/ucrt64/bin/pkg-config.exe"
           export PKG_CONFIG_PATH="${MINGW_PREFIX}/lib/pkgconfig"
           export PKG_CONFIG_LIBDIR="${MINGW_PREFIX}/lib/pkgconfig"
 
           ./waf configure \
+            --compiler=gcc \
             --dist-target=mingw \
             --optimize \
             --no-dr-mingw \
@@ -88,6 +93,20 @@ jobs:
             --no-nls \
             --with-backends=dummy,portaudio \
             --prefix=/Ardour
+
+      # ------------------------------------------------------------
+      # Print Waf Configuration Log on Failure
+      # ------------------------------------------------------------
+      - name: Print Waf config log on failure
+        if: failure()
+        run: |
+          if [ -f "build/config.log" ]; then
+            echo "=================== build/config.log ==================="
+            cat build/config.log
+            echo "========================================================"
+          else
+            echo "build/config.log not found."
+          fi
 
       # ------------------------------------------------------------
       # Build Ardour
