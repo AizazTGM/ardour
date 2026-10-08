@@ -21,6 +21,16 @@ jobs:
         with:
           submodules: recursive
           fetch-depth: 0
+
+      # ------------------------------------------------------------
+      # Ensure Git Tag Exists for Waf Versioning
+      # ------------------------------------------------------------
+      - name: Ensure fallback git tag
+        run: |
+          git tag -l "8.6.0" | grep -q "8.6.0" || git tag 8.6.0
+
+
+      
           
       - name: Setup MSYS2 and Install Dependencies
         uses: msys2/setup-msys2@v2
