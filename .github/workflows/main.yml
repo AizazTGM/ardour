@@ -33,13 +33,14 @@ jobs:
           submodules: recursive
 
       # ------------------------------------------------------------
-      # MSYS2 UCRT64 Setup
+      # MSYS2 UCRT64 Setup (with Caching Enabled)
       # ------------------------------------------------------------
       - name: Setup MSYS2 UCRT64
         uses: msys2/setup-msys2@v2
         with:
           msystem: UCRT64
           update: true
+          cache: true
           install: >-
             base-devel
             git
@@ -60,6 +61,7 @@ jobs:
             cmake
             ninja
             make
+            mingw-w64-ucrt-x86_64-ccache
             mingw-w64-ucrt-x86_64-toolchain
             mingw-w64-ucrt-x86_64-boost
             mingw-w64-ucrt-x86_64-aubio
@@ -101,14 +103,23 @@ jobs:
             mingw-w64-ucrt-x86_64-zlib
 
       # ------------------------------------------------------------
-      # Fast Fail Sanity Checks (Terminates early if dependencies fail)
+      # Setup CCache for fast C/C++ compilation
+      # ------------------------------------------------------------
+      - name: Setup Compiler Cache
+        uses: hendrikmuhs/ccache-action@v1.2
+        with:
+          key: ${{ runner.os }}-ucrt64-ardour
+          max-size: 2G
+
+      # ------------------------------------------------------------
+      # Fast Fail Sanity Checks
       # ------------------------------------------------------------
       - name: Fast Fail Sanity Check
         run: |
           set -euxo pipefail
 
           echo "=== 1. Checking executables in PATH ==="
-          for cmd in gcc g++ windres python pkg-config; do
+          for cmd in gcc g++ ccache windres python pkg-config; do
             if ! command -v "$cmd" >/dev/null 2>&1; then
               echo "ERROR: Required executable '$cmd' was not found!"
               exit 1
@@ -174,18 +185,20 @@ jobs:
 
           export WAF_NO_PREFORK=1
 
-          export CC="gcc"
-          export CXX="g++"
-          export AR="ar"
-          export RANLIB="ranlib"
-          export STRIP="strip"
-          export WINDRES="windres"
+          export CC="gcc.exe"
+          export CXX="g++.exe"
+          export AR="ar.exe"
+          export RANLIB="ranlib.exe"
+          export STRIP="strip.exe"
+          export WINDRES="windres.exe"
 
-          export PKG_CONFIG="pkg-config"
+          export PKG_CONFIG="pkg-config.exe"
           export PKG_CONFIG_PATH="${MINGW_PREFIX}/lib/pkgconfig"
           export PKG_CONFIG_LIBDIR="${MINGW_PREFIX}/lib/pkgconfig"
 
           ./waf configure \
+            --CC=gcc.exe \
+            --CXX=g++.exe \
             --dist-target=mingw \
             --optimize \
             --no-dr-mingw \
