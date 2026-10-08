@@ -98,6 +98,9 @@ jobs:
           export PKG_CONFIG_PATH="/ucrt64/lib/pkgconfig"
           export PKG_CONFIG_LIBDIR="/ucrt64/lib/pkgconfig"
 
+          # Prevent GCC C++20 char8_t string literal errors
+          export CXXFLAGS="-fno-char8-t"
+
           ./waf configure \
             --check-c-compiler=gcc \
             --check-cxx-compiler=g++ \
