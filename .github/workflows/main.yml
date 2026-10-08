@@ -101,6 +101,30 @@ jobs:
             mingw-w64-ucrt-x86_64-zlib
 
       # ------------------------------------------------------------
+      # Fast Fail Sanity Checks (Terminates early if dependencies fail)
+      # ------------------------------------------------------------
+      - name: Fast Fail Sanity Check
+        run: |
+          set -euxo pipefail
+
+          echo "=== 1. Checking executables in PATH ==="
+          for cmd in gcc g++ windres python pkg-config; do
+            if ! command -v "$cmd" >/dev/null 2>&1; then
+              echo "ERROR: Required executable '$cmd' was not found!"
+              exit 1
+            fi
+          done
+
+          echo "=== 2. Checking Python PIP ==="
+          python -m pip --version || { echo "ERROR: Python PIP is missing!"; exit 1; }
+
+          echo "=== 3. Checking critical pkg-config libraries ==="
+          pkg-config --exists glib-2.0 cairo cairomm-1.0 sndfile samplerate libxml-2.0 lilv-0 || {
+            echo "ERROR: Critical pkg-config library packages are missing!"
+            exit 1
+          }
+
+      # ------------------------------------------------------------
       # Verify 64-bit MinGW toolchain
       # ------------------------------------------------------------
       - name: Verify toolchain
@@ -150,14 +174,14 @@ jobs:
 
           export WAF_NO_PREFORK=1
 
-          export CC="${MINGW_PREFIX}/bin/gcc"
-          export CXX="${MINGW_PREFIX}/bin/g++"
-          export AR="${MINGW_PREFIX}/bin/ar"
-          export RANLIB="${MINGW_PREFIX}/bin/ranlib"
-          export STRIP="${MINGW_PREFIX}/bin/strip"
-          export WINDRES="${MINGW_PREFIX}/bin/windres"
+          export CC="gcc"
+          export CXX="g++"
+          export AR="ar"
+          export RANLIB="ranlib"
+          export STRIP="strip"
+          export WINDRES="windres"
 
-          export PKG_CONFIG="${MINGW_PREFIX}/bin/pkg-config"
+          export PKG_CONFIG="pkg-config"
           export PKG_CONFIG_PATH="${MINGW_PREFIX}/lib/pkgconfig"
           export PKG_CONFIG_LIBDIR="${MINGW_PREFIX}/lib/pkgconfig"
 
