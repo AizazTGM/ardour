@@ -59,8 +59,8 @@ jobs:
             mingw-w64-ucrt-x86_64-libarchive
             mingw-w64-ucrt-x86_64-aubio
             
-            mingw-w64-ucrt-x86_64-fluidsynth
-            mingw-w64-ucrt-x86_64-libusb
+            # mingw-w64-ucrt-x86_64-fluidsynth
+            # mingw-w64-ucrt-x86_64-libusb
             git
             make
       
@@ -104,6 +104,9 @@ jobs:
           # Prevent GCC C++20 char8_t string literal errors
           export CXXFLAGS="-fno-char8_t"
 
+          # Force dynamic linking to prevent static -lportaudio failures
+          export LINKFLAGS="-Wl,-Bdynamic"
+
           ./waf configure \
             --check-c-compiler=gcc \
             --check-cxx-compiler=g++ \
@@ -112,7 +115,6 @@ jobs:
             --no-dr-mingw \
             --no-phone-home \
             --no-nls \
-            --use-external-libs \
             --with-backends=dummy,portaudio \
             --prefix=/Ardour
 
