@@ -185,20 +185,23 @@ jobs:
 
           export WAF_NO_PREFORK=1
 
-          export CC="gcc.exe"
-          export CXX="g++.exe"
-          export AR="ar.exe"
-          export RANLIB="ranlib.exe"
-          export STRIP="strip.exe"
-          export WINDRES="windres.exe"
+          # Prepend ccache symlinks so standard gcc/g++ invocations use ccache automatically
+          if [ -d "${MINGW_PREFIX}/lib/ccache/bin" ]; then
+            export PATH="${MINGW_PREFIX}/lib/ccache/bin:${PATH}"
+          fi
 
-          export PKG_CONFIG="pkg-config.exe"
+          export CC="gcc"
+          export CXX="g++"
+          export AR="ar"
+          export RANLIB="ranlib"
+          export STRIP="strip"
+          export WINDRES="windres"
+
+          export PKG_CONFIG="pkg-config"
           export PKG_CONFIG_PATH="${MINGW_PREFIX}/lib/pkgconfig"
           export PKG_CONFIG_LIBDIR="${MINGW_PREFIX}/lib/pkgconfig"
 
           ./waf configure \
-            --CC=gcc.exe \
-            --CXX=g++.exe \
             --dist-target=mingw \
             --optimize \
             --no-dr-mingw \
@@ -215,6 +218,10 @@ jobs:
           set -euxo pipefail
 
           export WAF_NO_PREFORK=1
+
+          if [ -d "${MINGW_PREFIX}/lib/ccache/bin" ]; then
+            export PATH="${MINGW_PREFIX}/lib/ccache/bin:${PATH}"
+          fi
 
           JOBS="$(nproc)"
           echo "Building with ${JOBS} jobs"
