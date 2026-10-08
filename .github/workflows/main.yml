@@ -1,180 +1,53 @@
-name: Ardour Windows Build
+name: Build Ardour (MSYS2 UCRT64)
 
 on:
-  workflow_dispatch:
   push:
-    branches:
-      - master
-      - main
-    tags:
-      - "v*"
-
-permissions:
-  contents: read
+    branches: [ main, master ]
+  pull_request:
+    branches: [ main, master ]
+  workflow_dispatch:
 
 jobs:
-  windows:
-    name: Build Ardour Windows x64
-    runs-on: windows-2022
-    timeout-minutes: 180
+  build:
+    runs-on: windows-latest
 
     defaults:
       run:
         shell: msys2 {0}
 
     steps:
-      # ------------------------------------------------------------
-      # Source
-      # ------------------------------------------------------------
-      - name: Checkout Ardour
+      - name: Checkout Repository
         uses: actions/checkout@v4
         with:
-          fetch-depth: 0
           submodules: recursive
 
-      # ------------------------------------------------------------
-      # MSYS2 UCRT64 Setup (with Caching Enabled)
-      # ------------------------------------------------------------
-      - name: Setup MSYS2 UCRT64
+      - name: Setup MSYS2 and Install Dependencies
         uses: msys2/setup-msys2@v2
         with:
           msystem: UCRT64
           update: true
-          cache: true
           install: >-
-            base-devel
-            git
-            curl
-            wget
-            unzip
-            zip
-            tar
-            python
-            mingw-w64-ucrt-x86_64-python-pip
+            mingw-w64-ucrt-x86_64-gcc
+            mingw-w64-ucrt-x86_64-pkg-config
+            mingw-w64-ucrt-x86_64-python
             mingw-w64-ucrt-x86_64-python-setuptools
-            pkgconf
-            autoconf
-            automake
-            libtool
-            gettext
-            yasm
-            nasm
-            cmake
-            ninja
-            make
-            mingw-w64-ucrt-x86_64-ccache
-            mingw-w64-ucrt-x86_64-toolchain
             mingw-w64-ucrt-x86_64-boost
-            mingw-w64-ucrt-x86_64-aubio
-            mingw-w64-ucrt-x86_64-cairo
-            mingw-w64-ucrt-x86_64-cairomm
-            mingw-w64-ucrt-x86_64-curl
-            mingw-w64-ucrt-x86_64-fftw
-            mingw-w64-ucrt-x86_64-flac
-            mingw-w64-ucrt-x86_64-fluidsynth
-            mingw-w64-ucrt-x86_64-fontconfig
-            mingw-w64-ucrt-x86_64-freetype
-            mingw-w64-ucrt-x86_64-fribidi
-            mingw-w64-ucrt-x86_64-gdk-pixbuf2
-            mingw-w64-ucrt-x86_64-glib2
             mingw-w64-ucrt-x86_64-glibmm
-            mingw-w64-ucrt-x86_64-harfbuzz
-            mingw-w64-ucrt-x86_64-libarchive
-            mingw-w64-ucrt-x86_64-libiconv
-            mingw-w64-ucrt-x86_64-liblo
-            mingw-w64-ucrt-x86_64-libpng
-            mingw-w64-ucrt-x86_64-libsamplerate
-            mingw-w64-ucrt-x86_64-libsndfile
-            mingw-w64-ucrt-x86_64-libusb
-            mingw-w64-ucrt-x86_64-libwebsockets
+            mingw-w64-ucrt-x86_64-gtk2
+            mingw-w64-ucrt-x86_64-gtkmm
             mingw-w64-ucrt-x86_64-libxml2
-            mingw-w64-ucrt-x86_64-lilv
-            mingw-w64-ucrt-x86_64-lv2
-            mingw-w64-ucrt-x86_64-opus
-            mingw-w64-ucrt-x86_64-pango
-            mingw-w64-ucrt-x86_64-pangomm
+            mingw-w64-ucrt-x86_64-libsigc++
+            mingw-w64-ucrt-x86_64-libsndfile
+            mingw-w64-ucrt-x86_64-libsamplerate
             mingw-w64-ucrt-x86_64-portaudio
-            mingw-w64-ucrt-x86_64-rubberband
-            mingw-w64-ucrt-x86_64-serd
-            mingw-w64-ucrt-x86_64-sord
-            mingw-w64-ucrt-x86_64-sratom
+            mingw-w64-ucrt-x86_64-liblo
             mingw-w64-ucrt-x86_64-taglib
             mingw-w64-ucrt-x86_64-vamp-plugin-sdk
-            mingw-w64-ucrt-x86_64-zix
-            mingw-w64-ucrt-x86_64-zlib
-
-      # ------------------------------------------------------------
-      # Setup CCache for fast C/C++ compilation
-      # ------------------------------------------------------------
-      - name: Setup Compiler Cache
-        uses: hendrikmuhs/ccache-action@v1.2
-        with:
-          key: ${{ runner.os }}-ucrt64-ardour
-          max-size: 2G
-
-      # ------------------------------------------------------------
-      # Fast Fail Sanity Checks
-      # ------------------------------------------------------------
-      - name: Fast Fail Sanity Check
-        run: |
-          set -euxo pipefail
-
-          echo "=== 1. Checking executables in PATH ==="
-          for cmd in gcc g++ ccache windres python pkg-config; do
-            if ! command -v "$cmd" >/dev/null 2>&1; then
-              echo "ERROR: Required executable '$cmd' was not found!"
-              exit 1
-            fi
-          done
-
-          echo "=== 2. Checking Python PIP ==="
-          python -m pip --version || { echo "ERROR: Python PIP is missing!"; exit 1; }
-
-          echo "=== 3. Checking critical pkg-config libraries ==="
-          pkg-config --exists glib-2.0 cairo cairomm-1.0 sndfile samplerate libxml-2.0 lilv-0 || {
-            echo "ERROR: Critical pkg-config library packages are missing!"
-            exit 1
-          }
-
-      # ------------------------------------------------------------
-      # Verify 64-bit MinGW toolchain
-      # ------------------------------------------------------------
-      - name: Verify toolchain
-        run: |
-          set -euxo pipefail
-
-          echo "MSYSTEM=$MSYSTEM"
-          echo "MINGW_PREFIX=$MINGW_PREFIX"
-
-          gcc --version
-          g++ --version
-          python --version
-
-          which gcc
-          which g++
-          which windres
-
-          gcc -dumpmachine
-
-          test "$MSYSTEM" = "UCRT64"
-
-          case "$(gcc -dumpmachine)" in
-            x86_64-w64-mingw32*) ;;
-            *)
-              echo "ERROR: wrong compiler target"
-              exit 1
-              ;;
-          esac
-
-      # ------------------------------------------------------------
-      # Prepare Python build tooling
-      # ------------------------------------------------------------
-      - name: Prepare Python
-        run: |
-          set -euxo pipefail
-
-          python -m pip install --upgrade pip --break-system-packages || true
-          python -m pip install --upgrade setuptools --break-system-packages || true
+            mingw-w64-ucrt-x86_64-rubberband
+            mingw-w64-ucrt-x86_64-fftw
+            mingw-w64-ucrt-x86_64-curl
+            git
+            make
 
       # ------------------------------------------------------------
       # Configure Ardour
@@ -201,8 +74,6 @@ jobs:
           export PKG_CONFIG_LIBDIR="${MINGW_PREFIX}/lib/pkgconfig"
 
           ./waf configure \
-            --check-c-compiler=gcc \
-            --check-cxx-compiler=g++ \
             --dist-target=mingw \
             --optimize \
             --no-dr-mingw \
@@ -212,257 +83,17 @@ jobs:
             --prefix=/Ardour
 
       # ------------------------------------------------------------
-      # Build
+      # Build Ardour
       # ------------------------------------------------------------
       - name: Build Ardour
         run: |
           set -euxo pipefail
-
-          export WAF_NO_PREFORK=1
-
-          if [ -d "${MINGW_PREFIX}/lib/ccache/bin" ]; then
-            export PATH="${MINGW_PREFIX}/lib/ccache/bin:${PATH}"
-          fi
-
-          JOBS="$(nproc)"
-          echo "Building with ${JOBS} jobs"
-
-          ./waf build -j"${JOBS}"
+          ./waf build
 
       # ------------------------------------------------------------
-      # Translations / Resources
-      # ------------------------------------------------------------
-      - name: Build translations
-        run: |
-          set -euxo pipefail
-
-          ./waf i18n || true
-
-      # ------------------------------------------------------------
-      # Install into Staging Directory
+      # Install / Package Ardour
       # ------------------------------------------------------------
       - name: Install Ardour
         run: |
           set -euxo pipefail
-
-          rm -rf "$GITHUB_WORKSPACE/package"
-          mkdir -p "$GITHUB_WORKSPACE/package"
-
-          ./waf install \
-            --destdir="$GITHUB_WORKSPACE/package"
-
-          echo "Installed files:"
-          find "$GITHUB_WORKSPACE/package" -type f | sort
-
-      # ------------------------------------------------------------
-      # Bundle MSYS2 / UCRT64 Runtime DLLs
-      # ------------------------------------------------------------
-      - name: Bundle Windows runtime DLLs
-        run: |
-          set -euxo pipefail
-
-          ROOT="$GITHUB_WORKSPACE/package"
-
-          mkdir -p "$ROOT/bin"
-
-          ARDOUR_EXE="$(find "$ROOT" -type f \
-            \( -iname 'ardour*.exe' -o -iname 'Ardour.exe' \) \
-            | head -n 1)"
-
-          if [ -z "$ARDOUR_EXE" ]; then
-            echo "ERROR: Ardour executable was not installed."
-            find "$ROOT" -type f | sort
-            exit 1
-          fi
-
-          echo "Ardour executable: $ARDOUR_EXE"
-
-          BIN_DIR="$(dirname "$ARDOUR_EXE")"
-
-          find "$MINGW_PREFIX/bin" \
-            -maxdepth 1 \
-            -type f \
-            \( -iname '*.dll' \) \
-            -exec cp -f {} "$BIN_DIR/" \;
-
-          find "$MINGW_PREFIX/lib" \
-            -type f \
-            \( -iname '*.dll' \) \
-            -exec cp -f {} "$BIN_DIR/" \; 2>/dev/null || true
-
-          echo "Bundled DLLs:"
-          find "$BIN_DIR" -maxdepth 1 -iname '*.dll' -printf '%f\n' \
-            | sort
-
-      # ------------------------------------------------------------
-      # Bundle GTK / System Runtime Assets
-      # ------------------------------------------------------------
-      - name: Bundle runtime data
-        run: |
-          set -euxo pipefail
-
-          ROOT="$GITHUB_WORKSPACE/package"
-
-          mkdir -p "$ROOT/share"
-
-          for d in \
-            gtk-2.0 \
-            glib-2.0 \
-            icon-themes \
-            fonts \
-            themes
-          do
-            if [ -d "$MINGW_PREFIX/share/$d" ]; then
-              cp -a "$MINGW_PREFIX/share/$d" "$ROOT/share/" || true
-            fi
-          done
-
-          if [ -d "$MINGW_PREFIX/etc" ]; then
-            mkdir -p "$ROOT/etc"
-            cp -a "$MINGW_PREFIX/etc/"* "$ROOT/etc/" 2>/dev/null || true
-          fi
-
-      # ------------------------------------------------------------
-      # Portable Batch Launcher Creation
-      # ------------------------------------------------------------
-      - name: Create portable launcher
-        shell: pwsh
-        run: |
-          $root = Join-Path $env:GITHUB_WORKSPACE "package"
-
-          $exe = Get-ChildItem -Path $root -Recurse -Filter "Ardour*.exe" |
-            Where-Object { $_.Name -notmatch "scanner" } |
-            Select-Object -First 1
-
-          if (-not $exe) {
-            throw "Could not find Ardour executable"
-          }
-
-          $bin = $exe.Directory.FullName
-
-          $launcher = @"
-          @echo off
-          setlocal
-
-          set "ARDOUR_ROOT=%~dp0"
-
-          set "ARDOUR_DLL_PATH=%ARDOUR_ROOT%bin"
-          set "ARDOUR_DATA_PATH=%ARDOUR_ROOT%share"
-          set "ARDOUR_CONFIG_PATH=%ARDOUR_ROOT%etc"
-
-          set "PATH=%ARDOUR_ROOT%bin;%ARDOUR_ROOT%lib;%PATH%"
-
-          "$($exe.FullName)" %*
-          "@
-
-          $launcherPath = Join-Path $root "Ardour-Windows.bat"
-
-          $launcher | Out-File `
-            -FilePath $launcherPath `
-            -Encoding ascii
-
-          Write-Host "Launcher: $launcherPath"
-          Write-Host "Executable: $($exe.FullName)"
-
-      # ------------------------------------------------------------
-      # PE Architecture Verification
-      # ------------------------------------------------------------
-      - name: Validate executable
-        run: |
-          set -euxo pipefail
-
-          EXE="$(find "$GITHUB_WORKSPACE/package" -type f \
-            \( -iname 'ardour*.exe' -o -iname 'Ardour.exe' \) \
-            | grep -v scanner \
-            | head -n 1)"
-
-          test -n "$EXE"
-
-          echo "Testing: $EXE"
-
-          file "$EXE"
-
-          objdump -f "$EXE" | tee "$RUNNER_TEMP/ardour-objdump.txt"
-
-          grep -Ei \
-            'pei-x86-64|architecture: i386:x86-64' \
-            "$RUNNER_TEMP/ardour-objdump.txt"
-
-      # ------------------------------------------------------------
-      # Dependency Verification (Filter Windows System DLLs)
-      # ------------------------------------------------------------
-      - name: Check DLL dependencies
-        run: |
-          set -euxo pipefail
-
-          EXE="$(find "$GITHUB_WORKSPACE/package" -type f \
-            \( -iname 'ardour*.exe' -o -iname 'Ardour.exe' \) \
-            | grep -v scanner \
-            | head -n 1)"
-
-          echo "Dependency check for: $EXE"
-
-          while read -r dll; do
-            dll_lower="$(echo "$dll" | tr '[:upper:]' '[:lower:]')"
-
-            case "$dll_lower" in
-              api-ms-*|ext-ms-*|kernel32.dll|user32.dll|gdi32.dll|shell32.dll|advapi32.dll|ws2_32.dll|ole32.dll|oleaut32.dll|ucrtbase.dll|msvcrt.dll|winmm.dll|comdlg32.dll|imm32.dll|iphlpapi.dll|setupapi.dll)
-                continue
-                ;;
-            esac
-
-            if ! find "$GITHUB_WORKSPACE/package" -iname "$dll_lower" -print -quit | grep -q .; then
-              echo "ERROR: missing non-system runtime DLL: $dll"
-              exit 1
-            fi
-          done < <(
-            objdump -p "$EXE" | awk '/DLL Name:/ { print $3 }'
-          )
-
-      # ------------------------------------------------------------
-      # Create ZIP Archive
-      # ------------------------------------------------------------
-      - name: Package Windows build
-        shell: pwsh
-        run: |
-          $package = Join-Path $env:GITHUB_WORKSPACE "package"
-
-          $version = (git describe --tags --always --dirty).Trim()
-
-          $name = "Ardour-Windows-x64-$version"
-
-          $zip = Join-Path $env:GITHUB_WORKSPACE "$name.zip"
-
-          if (Test-Path $zip) {
-            Remove-Item $zip -Force
-          }
-
-          Compress-Archive `
-            -Path "$package\*" `
-            -DestinationPath $zip `
-            -CompressionLevel Optimal
-
-          Write-Host "Created: $zip"
-
-          "ARTIFACT_NAME=$name" >> $env:GITHUB_ENV
-
-      # ------------------------------------------------------------
-      # Upload Artifact
-      # ------------------------------------------------------------
-      - name: Upload Windows build
-        uses: actions/upload-artifact@v4
-        with:
-          name: ${{ env.ARTIFACT_NAME }}
-          path: Ardour-Windows-x64-*.zip
-          if-no-files-found: error
-          retention-days: 30
-
-      # ------------------------------------------------------------
-      # Publish Tagged Release Asset
-      # ------------------------------------------------------------
-      - name: Publish GitHub Release asset
-        if: startsWith(github.ref, 'refs/tags/')
-        uses: softprops/action-gh-release@v2
-        with:
-          files: Ardour-Windows-x64-*.zip
-          fail_on_unmatched_files: true
+          ./waf install
