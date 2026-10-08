@@ -51,6 +51,7 @@ jobs:
             tar
             python
             mingw-w64-ucrt-x86_64-python-pip
+            mingw-w64-ucrt-x86_64-python-setuptools
             pkgconf
             autoconf
             automake
@@ -172,7 +173,6 @@ jobs:
         run: |
           set -euxo pipefail
 
-          python -m ensurepip --default-pip || true
           python -m pip install --upgrade pip --break-system-packages || true
           python -m pip install --upgrade setuptools --break-system-packages || true
 
@@ -185,7 +185,6 @@ jobs:
 
           export WAF_NO_PREFORK=1
 
-          # Prepend ccache symlinks so standard gcc/g++ invocations use ccache automatically
           if [ -d "${MINGW_PREFIX}/lib/ccache/bin" ]; then
             export PATH="${MINGW_PREFIX}/lib/ccache/bin:${PATH}"
           fi
@@ -202,6 +201,8 @@ jobs:
           export PKG_CONFIG_LIBDIR="${MINGW_PREFIX}/lib/pkgconfig"
 
           ./waf configure \
+            --check-c-compiler=gcc \
+            --check-cxx-compiler=g++ \
             --dist-target=mingw \
             --optimize \
             --no-dr-mingw \
