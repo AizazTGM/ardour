@@ -33,11 +33,7 @@ jobs:
           submodules: recursive
 
       # ------------------------------------------------------------
-      # MSYS2 UCRT64
-      #
-      # Ardour's upstream Windows build uses MinGW.  UCRT64 gives us
-      # a modern 64-bit Windows runtime while still providing the
-      # MinGW toolchain Ardour's Waf configuration expects.
+      # MSYS2 UCRT64 Setup
       # ------------------------------------------------------------
       - name: Setup MSYS2 UCRT64
         uses: msys2/setup-msys2@v2
@@ -65,9 +61,7 @@ jobs:
             ninja
             make
             mingw-w64-ucrt-x86_64-toolchain
-
             mingw-w64-ucrt-x86_64-boost
-
             mingw-w64-ucrt-x86_64-aubio
             mingw-w64-ucrt-x86_64-cairo
             mingw-w64-ucrt-x86_64-cairomm
@@ -107,7 +101,7 @@ jobs:
             mingw-w64-ucrt-x86_64-zlib
 
       # ------------------------------------------------------------
-      # Verify that we really have a 64-bit MinGW environment.
+      # Verify 64-bit MinGW toolchain
       # ------------------------------------------------------------
       - name: Verify toolchain
         run: |
@@ -137,7 +131,7 @@ jobs:
           esac
 
       # ------------------------------------------------------------
-      # Install Python dependencies required by Waf/build helpers.
+      # Prepare Python build tooling
       # ------------------------------------------------------------
       - name: Prepare Python
         run: |
@@ -147,16 +141,7 @@ jobs:
           python -m pip install --upgrade setuptools
 
       # ------------------------------------------------------------
-      # Configure Ardour.
-      #
-      # Important:
-      #   - --dist-target=mingw
-      #   - --optimize
-      #   - --no-dr-mingw
-      #   - --no-phone-home
-      #   - --no-nls
-      #
-      # The MSYS2 prefix is used as the build dependency root.
+      # Configure Ardour
       # ------------------------------------------------------------
       - name: Configure Ardour
         run: |
@@ -185,7 +170,7 @@ jobs:
             --prefix=/Ardour
 
       # ------------------------------------------------------------
-      # Build.
+      # Build
       # ------------------------------------------------------------
       - name: Build Ardour
         run: |
@@ -199,7 +184,7 @@ jobs:
           ./waf build -j"${JOBS}"
 
       # ------------------------------------------------------------
-      # Generate translations/resources.
+      # Translations / Resources
       # ------------------------------------------------------------
       - name: Build translations
         run: |
@@ -208,7 +193,7 @@ jobs:
           ./waf i18n || true
 
       # ------------------------------------------------------------
-      # Install into a clean staging directory.
+      # Install into Staging Directory
       # ------------------------------------------------------------
       - name: Install Ardour
         run: |
@@ -224,10 +209,7 @@ jobs:
           find "$GITHUB_WORKSPACE/package" -type f | sort
 
       # ------------------------------------------------------------
-      # Copy the MSYS2/UCRT64 runtime DLLs required by Ardour.
-      #
-      # We intentionally copy the runtime rather than expecting the
-      # end user's PC to have MSYS2 installed.
+      # Bundle MSYS2 / UCRT64 Runtime DLLs
       # ------------------------------------------------------------
       - name: Bundle Windows runtime DLLs
         run: |
@@ -237,7 +219,6 @@ jobs:
 
           mkdir -p "$ROOT/bin"
 
-          # Find the Ardour executable produced by Waf.
           ARDOUR_EXE="$(find "$ROOT" -type f \
             \( -iname 'ardour*.exe' -o -iname 'Ardour.exe' \) \
             | head -n 1)"
@@ -252,17 +233,12 @@ jobs:
 
           BIN_DIR="$(dirname "$ARDOUR_EXE")"
 
-          # Collect all DLL dependencies from the UCRT64 runtime.
-          #
-          # We copy the complete runtime DLL set used by the installed
-          # MinGW packages. This avoids requiring MSYS2 on the target PC.
           find "$MINGW_PREFIX/bin" \
             -maxdepth 1 \
             -type f \
             \( -iname '*.dll' \) \
             -exec cp -f {} "$BIN_DIR/" \;
 
-          # Some packages place runtime DLLs in nested directories.
           find "$MINGW_PREFIX/lib" \
             -type f \
             \( -iname '*.dll' \) \
@@ -273,7 +249,7 @@ jobs:
             | sort
 
       # ------------------------------------------------------------
-      # Copy GTK/GDK runtime data required at runtime.
+      # Bundle GTK / System Runtime Assets
       # ------------------------------------------------------------
       - name: Bundle runtime data
         run: |
@@ -281,8 +257,6 @@ jobs:
 
           ROOT="$GITHUB_WORKSPACE/package"
 
-          # The Ardour build includes its own GTK-compatible UI stack,
-          # but runtime data from the MinGW environment is still needed.
           mkdir -p "$ROOT/share"
 
           for d in \
@@ -303,11 +277,7 @@ jobs:
           fi
 
       # ------------------------------------------------------------
-      # Create a portable launcher.
-      #
-      # This makes the artifact independent of the MSYS2 installation
-      # path and explicitly tells Ardour where its bundled resources
-      # and DLLs live.
+      # Portable Batch Launcher Creation
       # ------------------------------------------------------------
       - name: Create portable launcher
         shell: pwsh
@@ -339,7 +309,6 @@ jobs:
           "$($exe.FullName)" %*
           "@
 
-          # Use a simple launcher at package root.
           $launcherPath = Join-Path $root "Ardour-Windows.bat"
 
           $launcher | Out-File `
@@ -350,7 +319,7 @@ jobs:
           Write-Host "Executable: $($exe.FullName)"
 
       # ------------------------------------------------------------
-      # Validate that the resulting PE is really Windows x64.
+      # PE Architecture Verification
       # ------------------------------------------------------------
       - name: Validate executable
         run: |
@@ -367,7 +336,6 @@ jobs:
 
           file "$EXE"
 
-          # MinGW objdump should identify this as PE32+ / x86-64.
           objdump -f "$EXE" | tee "$RUNNER_TEMP/ardour-objdump.txt"
 
           grep -Ei \
@@ -375,7 +343,7 @@ jobs:
             "$RUNNER_TEMP/ardour-objdump.txt"
 
       # ------------------------------------------------------------
-      # Check for missing DLL dependencies.
+      # Dependency Verification (Filter Windows System DLLs)
       # ------------------------------------------------------------
       - name: Check DLL dependencies
         run: |
@@ -386,41 +354,27 @@ jobs:
             | grep -v scanner \
             | head -n 1)"
 
-          echo "Dependency check for:"
-          echo "$EXE"
+          echo "Dependency check for: $EXE"
 
-          objdump -p "$EXE" |
-            sed -n '/DLL Name:/,/^[[:space:]]*$/p' |
-            tee "$RUNNER_TEMP/ardour-dlls.txt"
-
-          # Every DLL imported directly by Ardour must exist in the
-          # portable package.
           while read -r dll; do
-            dll="$(echo "$dll" | tr '[:upper:]' '[:lower:]')"
+            dll_lower="$(echo "$dll" | tr '[:upper:]' '[:lower:]')"
 
-            case "$dll" in
-              api-ms-*|ext-ms-*)
+            case "$dll_lower" in
+              api-ms-*|ext-ms-*|kernel32.dll|user32.dll|gdi32.dll|shell32.dll|advapi32.dll|ws2_32.dll|ole32.dll|oleaut32.dll|ucrtbase.dll|msvcrt.dll|winmm.dll|comdlg32.dll|imm32.dll|iphlpapi.dll|setupapi.dll)
                 continue
                 ;;
             esac
 
-            if ! find "$GITHUB_WORKSPACE/package" \
-              -iname "$dll" \
-              -print -quit |
-              grep -q .; then
-
-              echo "ERROR: missing DLL: $dll"
+            if ! find "$GITHUB_WORKSPACE/package" -iname "$dll_lower" -print -quit | grep -q .; then
+              echo "ERROR: missing non-system runtime DLL: $dll"
               exit 1
             fi
           done < <(
-            objdump -p "$EXE" |
-            awk '/DLL Name:/ {
-              print $3
-            }'
+            objdump -p "$EXE" | awk '/DLL Name:/ { print $3 }'
           )
 
       # ------------------------------------------------------------
-      # Create a ZIP suitable for distribution.
+      # Create ZIP Archive
       # ------------------------------------------------------------
       - name: Package Windows build
         shell: pwsh
@@ -442,13 +396,12 @@ jobs:
             -DestinationPath $zip `
             -CompressionLevel Optimal
 
-          Write-Host "Created:"
-          Write-Host $zip
+          Write-Host "Created: $zip"
 
           "ARTIFACT_NAME=$name" >> $env:GITHUB_ENV
 
       # ------------------------------------------------------------
-      # Upload final build.
+      # Upload Artifact
       # ------------------------------------------------------------
       - name: Upload Windows build
         uses: actions/upload-artifact@v4
@@ -459,8 +412,7 @@ jobs:
           retention-days: 30
 
       # ------------------------------------------------------------
-      # If this workflow is triggered by a tag, also attach the ZIP
-      # to the GitHub Release.
+      # Publish Tagged Release Asset
       # ------------------------------------------------------------
       - name: Publish GitHub Release asset
         if: startsWith(github.ref, 'refs/tags/')
