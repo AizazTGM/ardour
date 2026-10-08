@@ -61,29 +61,27 @@ jobs:
           set -euxo pipefail
 
           export WAF_NO_PREFORK=1
-
           export MSYSTEM="UCRT64"
           export MSYS2_ARG_CONV_EXCL="*"
 
-          export PATH="/ucrt64/bin:${MINGW_PREFIX}/bin:${PATH}"
+          # Ensure the UCRT64 bin directory is front and center
+          export PATH="/ucrt64/bin:/usr/bin:${PATH}"
 
-          if [ -d "${MINGW_PREFIX}/lib/ccache/bin" ]; then
-            export PATH="${MINGW_PREFIX}/lib/ccache/bin:${PATH}"
-          fi
+          # Explicitly export compiler paths pointing directly to the binaries
+          export CC="/ucrt64/bin/gcc.exe"
+          export CXX="/ucrt64/bin/g++.exe"
+          export AR="/ucrt64/bin/ar.exe"
+          export RANLIB="/ucrt64/bin/ranlib.exe"
+          export STRIP="/ucrt64/bin/strip.exe"
+          export WINDRES="/ucrt64/bin/windres.exe"
 
-          # Hand Waf standard command names; PATH will resolve them to /ucrt64/bin
-          export CC="gcc"
-          export CXX="g++"
-          export AR="ar"
-          export RANLIB="ranlib"
-          export STRIP="strip"
-          export WINDRES="windres"
-
-          export PKG_CONFIG="pkg-config"
-          export PKG_CONFIG_PATH="${MINGW_PREFIX}/lib/pkgconfig"
-          export PKG_CONFIG_LIBDIR="${MINGW_PREFIX}/lib/pkgconfig"
+          export PKG_CONFIG="/ucrt64/bin/pkg-config.exe"
+          export PKG_CONFIG_PATH="/ucrt64/lib/pkgconfig"
+          export PKG_CONFIG_LIBDIR="/ucrt64/lib/pkgconfig"
 
           ./waf configure \
+            --check-c-compiler=gcc \
+            --check-cxx-compiler=g++ \
             --dist-target=mingw \
             --optimize \
             --no-dr-mingw \
