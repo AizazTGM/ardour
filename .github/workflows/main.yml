@@ -22,11 +22,6 @@ jobs:
           submodules: recursive
           fetch-depth: 0
 
-
-
-
-      
-          
       - name: Setup MSYS2 and Install Dependencies
         uses: msys2/setup-msys2@v2
         with:
@@ -42,12 +37,15 @@ jobs:
             mingw-w64-ucrt-x86_64-cairomm
             mingw-w64-ucrt-x86_64-glib2
             mingw-w64-ucrt-x86_64-glibmm
+            mingw-w64-ucrt-x86_64-sigc++2.0
             mingw-w64-ucrt-x86_64-pango
             mingw-w64-ucrt-x86_64-pangomm
             mingw-w64-ucrt-x86_64-libxml2
             mingw-w64-ucrt-x86_64-libsndfile
             mingw-w64-ucrt-x86_64-libsamplerate
             mingw-w64-ucrt-x86_64-portaudio
+            mingw-w64-ucrt-x86_64-jack2
+            mingw-w64-ucrt-x86_64-suil
             mingw-w64-ucrt-x86_64-liblo
             mingw-w64-ucrt-x86_64-taglib
             mingw-w64-ucrt-x86_64-vamp-plugin-sdk
@@ -60,12 +58,7 @@ jobs:
             mingw-w64-ucrt-x86_64-aubio
             git
             make
-      
 
-      # ------------------------------------------------------------
-      # Ensure Git Tag Exists for Waf Versioning
-      # ------------------------------------------------------------
-      # Must come AFTER setup-msys2 if using 'shell: msys2 {0}'
       - name: Fetch upstream tags
         shell: msys2 {0}
         run: |
@@ -73,9 +66,19 @@ jobs:
           git fetch upstream --tags
 
       # ------------------------------------------------------------
+      # Patch PortAudio Wscript (Removes forced static/dynamic wrappers)
+      # ------------------------------------------------------------
+      - name: Patch PortAudio Wscript
+        shell: msys2 {0}
+        run: |
+          sed -i 's/-Wl,-Bstatic//g' libs/backends/portaudio/wscript
+          sed -i 's/-Wl,-Bdynamic//g' libs/backends/portaudio/wscript
+
+      # ------------------------------------------------------------
       # Configure Ardour
       # ------------------------------------------------------------
       - name: Configure Ardour
+        shell: msys2 {0}
         run: |
           set -euxo pipefail
 
@@ -83,10 +86,8 @@ jobs:
           export MSYSTEM="UCRT64"
           export MSYS2_ARG_CONV_EXCL="*"
 
-          # Ensure the UCRT64 bin directory is front and center
           export PATH="/ucrt64/bin:/usr/bin:${PATH}"
 
-          # Explicitly export compiler paths pointing directly to the binaries
           export CC="/ucrt64/bin/gcc.exe"
           export CXX="/ucrt64/bin/g++.exe"
           export AR="/ucrt64/bin/ar.exe"
@@ -98,11 +99,7 @@ jobs:
           export PKG_CONFIG_PATH="/ucrt64/lib/pkgconfig"
           export PKG_CONFIG_LIBDIR="/ucrt64/lib/pkgconfig"
 
-          # Prevent GCC C++20 char8_t string literal errors
           export CXXFLAGS="-fno-char8_t"
-
-          # Force dynamic linking to prevent static -lportaudio failures
-          export LINKFLAGS="-Wl,-Bdynamic"
 
           ./waf configure \
             --check-c-compiler=gcc \
@@ -115,9 +112,6 @@ jobs:
             --with-backends=dummy,portaudio \
             --prefix=/Ardour
 
-      # ------------------------------------------------------------
-      # Print Waf Configuration Log on Failure
-      # ------------------------------------------------------------
       - name: Print Waf config log on failure
         if: failure()
         run: |
@@ -142,6 +136,7 @@ jobs:
       # Install / Package Ardour
       # ------------------------------------------------------------
       - name: Install Ardour
+        shell: msys2 {0}
         run: |
           set -euxo pipefail
           ./waf install
