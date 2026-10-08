@@ -1,12 +1,12 @@
-name: Build Ardour Release
+name: Build Ardour Windows Release
 
 on:
   workflow_dispatch:
 
 jobs:
   build:
-    name: Build Optimized Release
-    runs-on: ubuntu-24.04
+    name: Build Windows Release
+    runs-on: windows-latest
 
     steps:
       - name: Checkout Repository with Submodules
@@ -15,32 +15,54 @@ jobs:
           submodules: recursive
           fetch-depth: 0
 
-      - name: Install System Dependencies
-        env:
-          DEBIAN_FRONTEND: noninteractive
-        run: |
-          sudo sed -i 's/^Types: deb$/Types: deb deb-src/' /etc/apt/sources.list.d/ubuntu.sources || true
-          sudo apt-get update
-          sudo apt-get build-dep -y ardour
-          sudo apt-get install -y python3 git build-essential pkg-config \
-            libarchive-dev libwebsockets-dev libcppunit-dev libjpeg-dev libjack-jackd2-dev
+      - name: Setup MSYS2 Environment
+        uses: msys2/setup-msys2@v2
+        with:
+          msystem: MINGW64
+          update: true
+          install: >-
+            base-devel
+            git
+            python3
+            mingw-w64-x86_64-toolchain
+            mingw-w64-x86_64-pkg-config
+            mingw-w64-x86_64-glib2
+            mingw-w64-x86_64-glibmm
+            mingw-w64-x86_64-gtk2
+            mingw-w64-x86_64-gtkmm
+            mingw-w64-x86_64-libarchive
+            mingw-w64-x86_64-liblo
+            mingw-w64-x86_64-libsndfile
+            mingw-w64-x86_64-libxml2
+            mingw-w64-x86_64-boost
+            mingw-w64-x86_64-fftw
+            mingw-w64-x86_64-libpng
+            mingw-w64-x86_64-libjpeg-turbo
+            mingw-w64-x86_64-vamp-plugin-sdk
+            mingw-w64-x86_64-rubberband
+            mingw-w64-x86_64-taglib
+            mingw-w64-x86_64-curl
 
-      - name: Configure
+      - name: Configure (Windows / MSYS2)
+        shell: msys2 {0}
         run: |
-          python3 waf configure --optimize --freedesktop --no-nls
+          python3 waf configure --optimize --dist-target=mingw --no-nls
 
       - name: Compile
+        shell: msys2 {0}
         run: |
           python3 waf -j$(nproc)
 
       - name: Bundle Executables
+        shell: msys2 {0}
         run: |
           mkdir -p release_build
-          cp -r build/gtk2_ardour release_build/ 2>/dev/null || true
-          cp -r build/libs release_build/ 2>/dev/null || true
+          if [ -d "build/gtk2_ardour" ]; then cp -r build/gtk2_ardour release_build/; fi
+          if [ -d "build/libs" ]; then cp -r build/libs release_build/; fi
+          touch release_build/build_info.txt
 
       - name: Upload Binary Artifact
         uses: actions/upload-artifact@v4
         with:
-          name: Ardour-Linux-Release
+          name: Ardour-Windows-Release
           path: release_build/
