@@ -50,6 +50,7 @@ jobs:
             mingw-w64-ucrt-x86_64-curl
             mingw-w64-ucrt-x86_64-lilv
             mingw-w64-ucrt-x86_64-lv2
+            mingw-w64-ucrt-x86_64-libarchive
             git
             make
 
