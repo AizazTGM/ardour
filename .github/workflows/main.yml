@@ -26,6 +26,7 @@ jobs:
       # Ensure Git Tag Exists for Waf Versioning
       # ------------------------------------------------------------
       - name: Ensure fallback git tag
+        shell: msys2 {0}
         run: |
           git tag -l "8.6.0" | grep -q "8.6.0" || git tag 8.6.0
 
