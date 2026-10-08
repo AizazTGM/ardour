@@ -58,6 +58,9 @@ jobs:
             mingw-w64-ucrt-x86_64-lv2
             mingw-w64-ucrt-x86_64-libarchive
             mingw-w64-ucrt-x86_64-aubio
+            
+            mingw-w64-ucrt-x86_64-fluidsynth
+            mingw-w64-ucrt-x86_64-libusb
             git
             make
       
