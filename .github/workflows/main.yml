@@ -62,6 +62,9 @@ jobs:
 
           export WAF_NO_PREFORK=1
 
+          # Ensure UCRT64 toolchain binaries are first in PATH
+          export PATH="/ucrt64/bin:${MINGW_PREFIX}/bin:${PATH}"
+
           if [ -d "${MINGW_PREFIX}/lib/ccache/bin" ]; then
             export PATH="${MINGW_PREFIX}/lib/ccache/bin:${PATH}"
           fi
