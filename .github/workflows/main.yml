@@ -22,16 +22,16 @@ jobs:
           sudo sed -i 's/^Types: deb$/Types: deb deb-src/' /etc/apt/sources.list.d/ubuntu.sources || true
           sudo apt-get update
           sudo apt-get build-dep -y ardour
-          sudo apt-get install -y python3 git build-essential pkg-config libarchive-dev libwebsockets-dev libcppunit-dev
+          sudo apt-get install -y python3 git build-essential pkg-config \
+            libarchive-dev libwebsockets-dev libcppunit-dev libjpeg-dev libjack-jackd2-dev
 
       - name: Configure
         run: |
           python3 waf configure --optimize --freedesktop --no-nls
 
-      - name: Compile with Debug Logs
+      - name: Compile
         run: |
-          # If compilation fails, print the tail of config.log and failure details
-          python3 waf -j$(nproc) || (echo "=== WAF LOG EXCERPT ===" && tail -n 100 build/config.log && exit 1)
+          python3 waf -j$(nproc)
 
       - name: Bundle Executables
         run: |
