@@ -49,7 +49,7 @@ jobs:
             zip
             tar
             python
-            python-pip
+            mingw-w64-ucrt-x86_64-python-pip
             pkgconf
             autoconf
             automake
@@ -137,8 +137,9 @@ jobs:
         run: |
           set -euxo pipefail
 
-          python -m pip install --upgrade pip
-          python -m pip install --upgrade setuptools
+          python -m ensurepip --default-pip || true
+          python -m pip install --upgrade pip --break-system-packages || true
+          python -m pip install --upgrade setuptools --break-system-packages || true
 
       # ------------------------------------------------------------
       # Configure Ardour
