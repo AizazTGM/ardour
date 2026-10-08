@@ -66,10 +66,11 @@ jobs:
       # Ensure Git Tag Exists for Waf Versioning
       # ------------------------------------------------------------
       # Must come AFTER setup-msys2 if using 'shell: msys2 {0}'
-      - name: Ensure fallback git tag
+      - name: Fetch upstream tags
         shell: msys2 {0}
         run: |
-          git tag -l "8.6.0" | grep -q "8.6.0" || git tag 8.6.0
+          git remote add upstream https://github.com/Ardour/ardour.git || true
+          git fetch upstream --tags
 
       # ------------------------------------------------------------
       # Configure Ardour
