@@ -130,9 +130,10 @@ jobs:
       # Build Ardour
       # ------------------------------------------------------------
       - name: Build Ardour
+        shell: msys2 {0}
         run: |
           set -euxo pipefail
-          ./waf build
+          ./waf build -v
 
       # ------------------------------------------------------------
       # Install / Package Ardour
