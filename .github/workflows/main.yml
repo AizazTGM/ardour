@@ -62,30 +62,28 @@ jobs:
 
           export WAF_NO_PREFORK=1
 
+          export MSYSTEM="UCRT64"
+          export MSYS2_ARG_CONV_EXCL="*"
+
           export PATH="/ucrt64/bin:${MINGW_PREFIX}/bin:${PATH}"
 
           if [ -d "${MINGW_PREFIX}/lib/ccache/bin" ]; then
             export PATH="${MINGW_PREFIX}/lib/ccache/bin:${PATH}"
           fi
 
-          # Fast sanity check: confirm binaries are reachable in shell
-          which gcc || echo "gcc not found in PATH"
-          which g++ || echo "g++ not found in PATH"
+          # Hand Waf standard command names; PATH will resolve them to /ucrt64/bin
+          export CC="gcc"
+          export CXX="g++"
+          export AR="ar"
+          export RANLIB="ranlib"
+          export STRIP="strip"
+          export WINDRES="windres"
 
-          # Force absolute paths for compiler drivers
-          export CC="/ucrt64/bin/gcc.exe"
-          export CXX="/ucrt64/bin/g++.exe"
-          export AR="/ucrt64/bin/ar.exe"
-          export RANLIB="/ucrt64/bin/ranlib.exe"
-          export STRIP="/ucrt64/bin/strip.exe"
-          export WINDRES="/ucrt64/bin/windres.exe"
-
-          export PKG_CONFIG="/ucrt64/bin/pkg-config.exe"
+          export PKG_CONFIG="pkg-config"
           export PKG_CONFIG_PATH="${MINGW_PREFIX}/lib/pkgconfig"
           export PKG_CONFIG_LIBDIR="${MINGW_PREFIX}/lib/pkgconfig"
 
           ./waf configure \
-            --compiler=gcc \
             --dist-target=mingw \
             --optimize \
             --no-dr-mingw \
