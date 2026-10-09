@@ -76,6 +76,19 @@ jobs:
           sed -i 's/-Wl,-Bdynamic//g' libs/backends/portaudio/wscript
 
       # ------------------------------------------------------------
+      # Cache Waf Build Output (For fast subsequent runs)
+      # ------------------------------------------------------------
+      - name: Cache Waf Build Output
+        uses: actions/cache@v4
+        with:
+          path: |
+            build/
+            ~/.wafcache
+          key: waf-build-${{ runner.os }}-${{ github.sha }}
+          restore-keys: |
+            waf-build-${{ runner.os }}-
+
+      # ------------------------------------------------------------
       # Configure Ardour
       # ------------------------------------------------------------
       - name: Configure Ardour
@@ -120,7 +133,7 @@ jobs:
           fi
 
       # ------------------------------------------------------------
-      # Build Ardour
+      # Build & Install Ardour
       # ------------------------------------------------------------
       - name: Build Ardour
         shell: msys2 {0}
@@ -128,9 +141,6 @@ jobs:
           set -euxo pipefail
           ./waf build -v
 
-      # ------------------------------------------------------------
-      # Install Ardour
-      # ------------------------------------------------------------
       - name: Install Ardour
         shell: msys2 {0}
         run: |
@@ -138,17 +148,36 @@ jobs:
           ./waf install
 
       # ------------------------------------------------------------
-      # Bundle Output into Zip
+      # Bundle UCRT64 Dynamic Libraries & Create Zip Archive
       # ------------------------------------------------------------
       - name: Create Zip Archive
         shell: msys2 {0}
         run: |
           set -euxo pipefail
-          cd /
-          zip -r /ardour-windows-ucrt64.zip Ardour/
+
+          # Dynamically locate where Waf installed the directory
+          INSTALL_DIR=""
+          if [ -d "/Ardour" ]; then
+            INSTALL_DIR="/Ardour"
+          elif [ -d "Ardour" ]; then
+            INSTALL_DIR="$(pwd)/Ardour"
+          elif [ -d "/c/Ardour" ]; then
+            INSTALL_DIR="/c/Ardour"
+          fi
+
+          echo "Found Ardour installation at: ${INSTALL_DIR}"
+
+          # Copy core UCRT64 runtime DLLs into Ardour's bin folder for standalone operation
+          if [ -d "${INSTALL_DIR}/bin" ]; then
+            cp -u /ucrt64/bin/*.dll "${INSTALL_DIR}/bin/" || true
+          fi
+
+          # Zip the folder relative to its parent directory
+          cd "$(dirname "${INSTALL_DIR}")"
+          zip -r /ardour-windows-ucrt64.zip "$(basename "${INSTALL_DIR}")"
 
       # ------------------------------------------------------------
-      # Output Option A: Workflow Artifact (Always runs on push/PR)
+      # Output Option 1: Workflow Artifact (Always runs on every push/PR)
       # ------------------------------------------------------------
       - name: Upload Build Artifact
         uses: actions/upload-artifact@v4
@@ -158,7 +187,7 @@ jobs:
           retention-days: 7
 
       # ------------------------------------------------------------
-      # Output Option B: GitHub Release (Runs ONLY on git tags like v1.0.0)
+      # Output Option 2: GitHub Release (Runs ONLY on git tags like v1.0.0)
       # ------------------------------------------------------------
       - name: Publish to GitHub Releases
         uses: softprops/action-gh-release@v2
