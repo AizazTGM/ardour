@@ -67,7 +67,7 @@ jobs:
           git fetch upstream --tags
 
       # ------------------------------------------------------------
-      # Patch PortAudio Wscript (Removes forced static/dynamic wrappers)
+      # Patch PortAudio Wscript
       # ------------------------------------------------------------
       - name: Patch PortAudio Wscript
         shell: msys2 {0}
@@ -76,7 +76,7 @@ jobs:
           sed -i 's/-Wl,-Bdynamic//g' libs/backends/portaudio/wscript
 
       # ------------------------------------------------------------
-      # Cache Waf Build Output (For fast subsequent runs)
+      # Cache Waf Build Output (Speeds up build phase to ~2 mins)
       # ------------------------------------------------------------
       - name: Cache Waf Build Output
         uses: actions/cache@v4
@@ -155,29 +155,43 @@ jobs:
         run: |
           set -euxo pipefail
 
-          # Dynamically locate where Waf installed the directory
+          # Search all potential MSYS2 and Waf installation targets
           INSTALL_DIR=""
-          if [ -d "/Ardour" ]; then
-            INSTALL_DIR="/Ardour"
-          elif [ -d "Ardour" ]; then
-            INSTALL_DIR="$(pwd)/Ardour"
-          elif [ -d "/c/Ardour" ]; then
-            INSTALL_DIR="/c/Ardour"
+          for path in "/ucrt64/Ardour" "/Ardour" "Ardour" "/c/Ardour"; do
+            if [ -d "$path" ]; then
+              INSTALL_DIR="$path"
+              break
+            fi
+          done
+
+          # Fallback search if standard directories are not found
+          if [ -z "$INSTALL_DIR" ]; then
+            FOUND=$(find / -maxdepth 3 -type d -name "Ardour" 2>/dev/null | head -n 1 || true)
+            if [ -n "$FOUND" ]; then
+              INSTALL_DIR="$FOUND"
+            fi
+          fi
+
+          if [ -z "$INSTALL_DIR" ]; then
+            echo "ERROR: Could not locate Ardour installation directory!"
+            exit 1
           fi
 
           echo "Found Ardour installation at: ${INSTALL_DIR}"
 
-          # Copy core UCRT64 runtime DLLs into Ardour's bin folder for standalone operation
-          if [ -d "${INSTALL_DIR}/bin" ]; then
-            cp -u /ucrt64/bin/*.dll "${INSTALL_DIR}/bin/" || true
-          fi
+          # Create bin directory if needed and copy runtime DLLs
+          mkdir -p "${INSTALL_DIR}/bin"
+          cp -u /ucrt64/bin/*.dll "${INSTALL_DIR}/bin/" || true
 
-          # Zip the folder relative to its parent directory
-          cd "$(dirname "${INSTALL_DIR}")"
-          zip -r /ardour-windows-ucrt64.zip "$(basename "${INSTALL_DIR}")"
+          # Target parent directory and zip
+          PARENT_DIR=$(dirname "${INSTALL_DIR}")
+          FOLDER_NAME=$(basename "${INSTALL_DIR}")
+
+          cd "${PARENT_DIR}"
+          zip -r /ardour-windows-ucrt64.zip "${FOLDER_NAME}"
 
       # ------------------------------------------------------------
-      # Output Option 1: Workflow Artifact (Always runs on every push/PR)
+      # Output Option 1: Workflow Artifact (Runs on every commit)
       # ------------------------------------------------------------
       - name: Upload Build Artifact
         uses: actions/upload-artifact@v4
@@ -187,7 +201,7 @@ jobs:
           retention-days: 7
 
       # ------------------------------------------------------------
-      # Output Option 2: GitHub Release (Runs ONLY on git tags like v1.0.0)
+      # Output Option 2: GitHub Release (Runs ONLY on git tags)
       # ------------------------------------------------------------
       - name: Publish to GitHub Releases
         uses: softprops/action-gh-release@v2
