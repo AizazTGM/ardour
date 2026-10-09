@@ -139,3 +139,20 @@ jobs:
         run: |
           set -euxo pipefail
           ./waf install
+
+      # ------------------------------------------------------------
+      # Package and Release
+      # ------------------------------------------------------------
+      - name: Create Zip Archive
+        shell: msys2 {0}
+        run: |
+          cd /
+          tar -czf ardour-windows-ucrt64.tar.gz Ardour/
+
+      - name: Upload to GitHub Releases
+        uses: softprops/action-gh-release@v2
+        if: startsWith(github.ref, 'refs/tags/')
+        with:
+          files: C:/ardour-windows-ucrt64.tar.gz
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
