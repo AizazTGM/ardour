@@ -67,19 +67,10 @@ jobs:
           git fetch upstream --tags
 
       # ------------------------------------------------------------
-      # Patch PortAudio Wscript
+      # Restore Waf Cache
       # ------------------------------------------------------------
-      - name: Patch PortAudio Wscript
-        shell: msys2 {0}
-        run: |
-          sed -i 's/-Wl,-Bstatic//g' libs/backends/portaudio/wscript
-          sed -i 's/-Wl,-Bdynamic//g' libs/backends/portaudio/wscript
-
-      # ------------------------------------------------------------
-      # Cache Waf Build Output (Speeds up build phase to ~2 mins)
-      # ------------------------------------------------------------
-      - name: Cache Waf Build Output
-        uses: actions/cache@v4
+      - name: Restore Waf Cache
+        uses: actions/cache/restore@v4
         with:
           path: |
             build/
@@ -87,6 +78,15 @@ jobs:
           key: waf-build-${{ runner.os }}-${{ github.sha }}
           restore-keys: |
             waf-build-${{ runner.os }}-
+
+      # ------------------------------------------------------------
+      # Patch PortAudio Wscript
+      # ------------------------------------------------------------
+      - name: Patch PortAudio Wscript
+        shell: msys2 {0}
+        run: |
+          sed -i 's/-Wl,-Bstatic//g' libs/backends/portaudio/wscript
+          sed -i 's/-Wl,-Bdynamic//g' libs/backends/portaudio/wscript
 
       # ------------------------------------------------------------
       # Configure Ardour
@@ -110,6 +110,7 @@ jobs:
           export PKG_CONFIG_LIBDIR="/ucrt64/lib/pkgconfig"
           export CXXFLAGS="-fno-char8_t"
 
+          # Explicitly set prefix to a deterministic local folder
           ./waf configure \
             --check-c-compiler=gcc \
             --check-cxx-compiler=g++ \
@@ -119,7 +120,7 @@ jobs:
             --no-phone-home \
             --no-nls \
             --with-backends=dummy,portaudio \
-            --prefix=/Ardour
+            --prefix="$(pwd)/installed_ardour"
 
       - name: Print Waf config log on failure
         if: failure()
@@ -133,7 +134,7 @@ jobs:
           fi
 
       # ------------------------------------------------------------
-      # Build & Install Ardour
+      # Build Ardour
       # ------------------------------------------------------------
       - name: Build Ardour
         shell: msys2 {0}
@@ -141,72 +142,52 @@ jobs:
           set -euxo pipefail
           ./waf build -v
 
-      - name: Install Ardour
+      # ------------------------------------------------------------
+      # Save Waf Cache (Guarantees cache is stored even if packaging fails)
+      # ------------------------------------------------------------
+      - name: Save Waf Cache
+        uses: actions/cache/save@v4
+        if: always()
+        with:
+          path: |
+            build/
+            ~/.wafcache
+          key: waf-build-${{ runner.os }}-${{ github.sha }}
+
+      # ------------------------------------------------------------
+      # Install & Bundle Ardour
+      # ------------------------------------------------------------
+      - name: Install & Bundle Ardour
         shell: msys2 {0}
         run: |
           set -euxo pipefail
+
           ./waf install
 
-      # ------------------------------------------------------------
-      # Bundle UCRT64 Dynamic Libraries & Create Zip Archive
-      # ------------------------------------------------------------
-      - name: Create Zip Archive
-        shell: msys2 {0}
-        run: |
-          set -euxo pipefail
+          # Bundle runtime UCRT64 dynamic libraries into bin
+          mkdir -p installed_ardour/bin
+          cp -u /ucrt64/bin/*.dll installed_ardour/bin/ || true
 
-          # Search all potential MSYS2 and Waf installation targets
-          INSTALL_DIR=""
-          for path in "/ucrt64/Ardour" "/Ardour" "Ardour" "/c/Ardour"; do
-            if [ -d "$path" ]; then
-              INSTALL_DIR="$path"
-              break
-            fi
-          done
-
-          # Fallback search if standard directories are not found
-          if [ -z "$INSTALL_DIR" ]; then
-            FOUND=$(find / -maxdepth 3 -type d -name "Ardour" 2>/dev/null | head -n 1 || true)
-            if [ -n "$FOUND" ]; then
-              INSTALL_DIR="$FOUND"
-            fi
-          fi
-
-          if [ -z "$INSTALL_DIR" ]; then
-            echo "ERROR: Could not locate Ardour installation directory!"
-            exit 1
-          fi
-
-          echo "Found Ardour installation at: ${INSTALL_DIR}"
-
-          # Create bin directory if needed and copy runtime DLLs
-          mkdir -p "${INSTALL_DIR}/bin"
-          cp -u /ucrt64/bin/*.dll "${INSTALL_DIR}/bin/" || true
-
-          # Target parent directory and zip
-          PARENT_DIR=$(dirname "${INSTALL_DIR}")
-          FOLDER_NAME=$(basename "${INSTALL_DIR}")
-
-          cd "${PARENT_DIR}"
-          zip -r /ardour-windows-ucrt64.zip "${FOLDER_NAME}"
+          # Create standalone archive
+          zip -r ardour-windows-ucrt64.zip installed_ardour/
 
       # ------------------------------------------------------------
-      # Output Option 1: Workflow Artifact (Runs on every commit)
+      # Upload Artifact (Runs on every push/PR)
       # ------------------------------------------------------------
       - name: Upload Build Artifact
         uses: actions/upload-artifact@v4
         with:
           name: Ardour-Windows-UCRT64
-          path: /ardour-windows-ucrt64.zip
+          path: ardour-windows-ucrt64.zip
           retention-days: 7
 
       # ------------------------------------------------------------
-      # Output Option 2: GitHub Release (Runs ONLY on git tags)
+      # Publish to GitHub Releases (Runs ONLY on git tags like v1.0.0)
       # ------------------------------------------------------------
       - name: Publish to GitHub Releases
         uses: softprops/action-gh-release@v2
         if: startsWith(github.ref, 'refs/tags/')
         with:
-          files: /ardour-windows-ucrt64.zip
+          files: ardour-windows-ucrt64.zip
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
