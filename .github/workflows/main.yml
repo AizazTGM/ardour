@@ -37,7 +37,7 @@ jobs:
             mingw-w64-ucrt-x86_64-cairomm
             mingw-w64-ucrt-x86_64-glib2
             mingw-w64-ucrt-x86_64-glibmm
-            mingw-w64-ucrt-x86_64-libsigc++2.0
+            mingw-w64-ucrt-x86_64-libsigc++
             mingw-w64-ucrt-x86_64-pango
             mingw-w64-ucrt-x86_64-pangomm
             mingw-w64-ucrt-x86_64-libxml2
@@ -45,7 +45,6 @@ jobs:
             mingw-w64-ucrt-x86_64-libsamplerate
             mingw-w64-ucrt-x86_64-portaudio
             mingw-w64-ucrt-x86_64-jack2
-            mingw-w64-ucrt-x86_64-suil-git
             mingw-w64-ucrt-x86_64-liblo
             mingw-w64-ucrt-x86_64-taglib
             mingw-w64-ucrt-x86_64-vamp-plugin-sdk
