@@ -3,6 +3,7 @@ name: Build Ardour (MSYS2 UCRT64)
 on:
   push:
     branches: [ main, master ]
+    tags: [ 'v*' ]
   pull_request:
     branches: [ main, master ]
   workflow_dispatch:
@@ -57,6 +58,7 @@ jobs:
             mingw-w64-ucrt-x86_64-aubio
             git
             make
+            zip
 
       - name: Fetch upstream tags
         shell: msys2 {0}
@@ -80,24 +82,19 @@ jobs:
         shell: msys2 {0}
         run: |
           set -euxo pipefail
-
           export WAF_NO_PREFORK=1
           export MSYSTEM="UCRT64"
           export MSYS2_ARG_CONV_EXCL="*"
-
           export PATH="/ucrt64/bin:/usr/bin:${PATH}"
-
           export CC="/ucrt64/bin/gcc.exe"
           export CXX="/ucrt64/bin/g++.exe"
           export AR="/ucrt64/bin/ar.exe"
           export RANLIB="/ucrt64/bin/ranlib.exe"
           export STRIP="/ucrt64/bin/strip.exe"
           export WINDRES="/ucrt64/bin/windres.exe"
-
           export PKG_CONFIG="/ucrt64/bin/pkg-config.exe"
           export PKG_CONFIG_PATH="/ucrt64/lib/pkgconfig"
           export PKG_CONFIG_LIBDIR="/ucrt64/lib/pkgconfig"
-
           export CXXFLAGS="-fno-char8_t"
 
           ./waf configure \
@@ -132,7 +129,7 @@ jobs:
           ./waf build -v
 
       # ------------------------------------------------------------
-      # Install / Package Ardour
+      # Install Ardour
       # ------------------------------------------------------------
       - name: Install Ardour
         shell: msys2 {0}
@@ -141,18 +138,32 @@ jobs:
           ./waf install
 
       # ------------------------------------------------------------
-      # Package and Release
+      # Bundle Output into Zip
       # ------------------------------------------------------------
       - name: Create Zip Archive
         shell: msys2 {0}
         run: |
+          set -euxo pipefail
           cd /
-          tar -czf ardour-windows-ucrt64.tar.gz Ardour/
+          zip -r /ardour-windows-ucrt64.zip Ardour/
 
-      - name: Upload to GitHub Releases
+      # ------------------------------------------------------------
+      # Output Option A: Workflow Artifact (Always runs on push/PR)
+      # ------------------------------------------------------------
+      - name: Upload Build Artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: Ardour-Windows-UCRT64
+          path: /ardour-windows-ucrt64.zip
+          retention-days: 7
+
+      # ------------------------------------------------------------
+      # Output Option B: GitHub Release (Runs ONLY on git tags like v1.0.0)
+      # ------------------------------------------------------------
+      - name: Publish to GitHub Releases
         uses: softprops/action-gh-release@v2
         if: startsWith(github.ref, 'refs/tags/')
         with:
-          files: C:/ardour-windows-ucrt64.tar.gz
+          files: /ardour-windows-ucrt64.zip
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
