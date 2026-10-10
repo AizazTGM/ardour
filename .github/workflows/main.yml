@@ -63,15 +63,6 @@ jobs:
             make
             zip
 
-      - name: Fetch upstream tags
-        shell: msys2 {0}
-        run: |
-          git remote add upstream https://github.com/Ardour/ardour.git || true
-          git fetch upstream --tags
-
-      # ------------------------------------------------------------
-      # Restore Waf Cache
-      # ------------------------------------------------------------
       - name: Restore Waf Cache
         uses: actions/cache/restore@v4
         with:
@@ -82,20 +73,12 @@ jobs:
           restore-keys: |
             waf-build-${{ runner.os }}-
 
-      # ------------------------------------------------------------
-      # Patch PortAudio Wscript
-      # ------------------------------------------------------------
       - name: Patch PortAudio Wscript
-        shell: msys2 {0}
         run: |
           sed -i 's/-Wl,-Bstatic//g' libs/backends/portaudio/wscript
           sed -i 's/-Wl,-Bdynamic//g' libs/backends/portaudio/wscript
 
-      # ------------------------------------------------------------
-      # Configure Ardour
-      # ------------------------------------------------------------
       - name: Configure Ardour
-        shell: msys2 {0}
         run: |
           set -euxo pipefail
           export WAF_NO_PREFORK=1
@@ -112,7 +95,6 @@ jobs:
           export PKG_CONFIG_PATH="/ucrt64/lib/pkgconfig"
           export PKG_CONFIG_LIBDIR="/ucrt64/lib/pkgconfig"
           export CXXFLAGS="-fno-char8_t"
-
           ./waf configure \
             --check-c-compiler=gcc \
             --check-cxx-compiler=g++ \
@@ -122,7 +104,7 @@ jobs:
             --no-phone-home \
             --no-nls \
             --with-backends=dummy,portaudio \
-            --prefix="/installed_ardour"
+            --prefix="D:/a/ardour/ardour/installed_ardour"
 
       - name: Print Waf config log on failure
         if: failure()
@@ -135,11 +117,7 @@ jobs:
             echo "build/config.log not found."
           fi
 
-      # ------------------------------------------------------------
-      # Build Ardour
-      # ------------------------------------------------------------
       - name: Build Ardour
-        shell: msys2 {0}
         run: |
           set -euxo pipefail
           ./waf build -v
@@ -156,37 +134,17 @@ jobs:
             ~/.wafcache
           key: waf-build-${{ runner.os }}-${{ github.sha }}
 
-      # ------------------------------------------------------------
-      # Install Ardour (Standard Prefix Output)
-      # ------------------------------------------------------------
-      # ------------------------------------------------------------
-      # Install Ardour (Standard Prefix Output)
-      # ------------------------------------------------------------
       - name: Install Ardour via Waf
-        shell: msys2 {0}
         run: |
           set -euxo pipefail
-
-          # Create the installation directory explicitly
-          mkdir -p /installed_ardour
-          mkdir -p installed_ardour
-
-          # Run Waf install
           ./waf install
-
-          # Copy Waf's installation output to the local workspace folder if needed
-          cp -r /installed_ardour/* installed_ardour/ || true
-
           echo "=== Installed Ardour Directory Contents ==="
           ls -la installed_ardour/
 
-      # ------------------------------------------------------------
-      # Upload Raw Installed + Build Folders Artifact
-      # ------------------------------------------------------------
       - name: Upload Raw Build & Install Artifacts
-        uses: actions/upload-artifact@v4
-        with:
-          name: Ardour-Raw-Build-And-Install
-          path: |
-            installed_ardour/
-            build/
+      uses: actions/upload-artifact@v4
+      with:
+        name: Ardour-Raw-Build-And-Install
+        path: |
+          installed_ardour/
+          build/
