@@ -157,58 +157,26 @@ jobs:
           key: waf-build-${{ runner.os }}-${{ github.sha }}
 
       # ------------------------------------------------------------
-      # Install & Bundle Ardour
+      # Install Ardour (Standard Prefix Output)
       # ------------------------------------------------------------
-      # ------------------------------------------------------------
-      # Install & Bundle Ardour Portable
-      # ------------------------------------------------------------
-      # ------------------------------------------------------------
-      # Install & Bundle Ardour Portable
-      # ------------------------------------------------------------
-      - name: Install & Bundle Lean Ardour Portable
+      - name: Install Ardour via Waf
         shell: msys2 {0}
         run: |
           set -euxo pipefail
 
-          # 1. Let Waf populate installed_ardour with share/ and lib/
+          # Run Waf install to populate the prefix directory (installed_ardour/)
           ./waf install
 
-          # 2. EXPLICITLY create the bin directory so cp doesn't fail
-          mkdir -p installed_ardour/bin
-
-          # 3. Copy compiled Ardour executables and scanners
-          cp -fv build/gtk2_ardour/ardour*.exe installed_ardour/bin/ || true
-          cp -fv build/libs/fst/ardour-vst*.exe installed_ardour/bin/ || true
-          cp -fv build/luasession/*.exe installed_ardour/bin/ || true
-          cp -fv build/session_utils/*.exe installed_ardour/bin/ || true
-
-          # 4. Copy internal Ardour core DLLs from build folder
-          find build -name "*.dll" -exec cp -fv {} installed_ardour/bin/ \; || true
-
-          # 5. Copy required GTK Theme Engines
-          mkdir -p installed_ardour/lib/gtk-2.0/2.10.0/engines
-          cp -fv /ucrt64/lib/gtk-2.0/2.10.0/engines/*.dll installed_ardour/lib/gtk-2.0/2.10.0/engines/ || true
-
-          # 6. Copy ALL MSYS2 runtime dependencies into bin/
-          cp -u /ucrt64/bin/*.dll installed_ardour/bin/ || true
-
-          # 7. Include the root portable launcher script
-          cat << 'EOF' > installed_ardour/run.bat
-          @echo off
-          set "ARDOUR_DATA_PATH=%~dp0share\ardour9"
-          set "ARDOUR_CONFIG_PATH=%APPDATA%\Ardour9"
-          start "" "%~dp0bin\ardour-9.8.205.exe" %*
-          EOF
-
-          echo "=== Portable Bundle Complete ==="
+          echo "=== Installed Ardour Directory Contents ==="
           ls -la installed_ardour/
-          ls -la installed_ardour/bin/
 
       # ------------------------------------------------------------
-      # Upload Artifact
+      # Upload Raw Installed + Build Folders Artifact
       # ------------------------------------------------------------
-      - name: Upload Organized Portable Artifact
+      - name: Upload Raw Build & Install Artifacts
         uses: actions/upload-artifact@v4
         with:
-          name: Ardour-Windows-UCRT64-Portable
-          path: installed_ardour/
+          name: Ardour-Raw-Build-And-Install
+          path: |
+            installed_ardour/
+            build/
