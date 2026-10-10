@@ -62,6 +62,12 @@ jobs:
             git
             make
             zip
+            
+      - name: Fetch upstream tags
+        shell: msys2 {0}
+        run: |
+          git remote add upstream https://github.com/Ardour/ardour.git || true
+          git fetch upstream --tags
 
       - name: Restore Waf Cache
         uses: actions/cache/restore@v4
@@ -104,7 +110,7 @@ jobs:
             --no-phone-home \
             --no-nls \
             --with-backends=dummy,portaudio \
-            --prefix="D:/a/ardour/ardour/installed_ardour"
+            --prefix="$(pwd)/installed_ardour"
 
       - name: Print Waf config log on failure
         if: failure()
