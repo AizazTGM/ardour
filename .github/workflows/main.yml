@@ -187,5 +187,4 @@ jobs:
         uses: actions/upload-artifact@v4
         with:
           name: Ardour-Windows-UCRT64
-          path: ardour-windows-ucrt64.zip
-          retention-days: 7
+          path: installed_ardour/
