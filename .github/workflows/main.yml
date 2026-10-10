@@ -41,6 +41,10 @@ jobs:
             mingw-w64-ucrt-x86_64-libsigc++
             mingw-w64-ucrt-x86_64-pango
             mingw-w64-ucrt-x86_64-pangomm
+            mingw-w64-ucrt-x86_64-gtk2
+            mingw-w64-ucrt-x86_64-gtkmm
+            mingw-w64-ucrt-x86_64-atk
+            mingw-w64-ucrt-x86_64-gdk-pixbuf2
             mingw-w64-ucrt-x86_64-libxml2
             mingw-w64-ucrt-x86_64-libsndfile
             mingw-w64-ucrt-x86_64-libsamplerate
@@ -110,7 +114,6 @@ jobs:
           export PKG_CONFIG_LIBDIR="/ucrt64/lib/pkgconfig"
           export CXXFLAGS="-fno-char8_t"
 
-          # Explicitly set prefix to a deterministic local folder
           ./waf configure \
             --check-c-compiler=gcc \
             --check-cxx-compiler=g++ \
@@ -143,7 +146,7 @@ jobs:
           ./waf build -v
 
       # ------------------------------------------------------------
-      # Save Waf Cache (Guarantees cache is stored even if packaging fails)
+      # Save Waf Cache
       # ------------------------------------------------------------
       - name: Save Waf Cache
         uses: actions/cache/save@v4
@@ -164,6 +167,10 @@ jobs:
 
           ./waf install
 
+          # Verify ardour.exe is present after install
+          echo "=== Verifying compiled executables ==="
+          find . -name "ardour.exe" -o -name "ardour*.exe"
+
           # Bundle runtime UCRT64 dynamic libraries into bin
           mkdir -p installed_ardour/bin
           cp -u /ucrt64/bin/*.dll installed_ardour/bin/ || true
@@ -172,7 +179,7 @@ jobs:
           zip -r ardour-windows-ucrt64.zip installed_ardour/
 
       # ------------------------------------------------------------
-      # Upload Artifact (Runs on every push/PR)
+      # Upload Artifact
       # ------------------------------------------------------------
       - name: Upload Build Artifact
         uses: actions/upload-artifact@v4
@@ -180,14 +187,3 @@ jobs:
           name: Ardour-Windows-UCRT64
           path: ardour-windows-ucrt64.zip
           retention-days: 7
-
-      # ------------------------------------------------------------
-      # Publish to GitHub Releases (Runs ONLY on git tags like v1.0.0)
-      # ------------------------------------------------------------
-      - name: Publish to GitHub Releases
-        uses: softprops/action-gh-release@v2
-        if: startsWith(github.ref, 'refs/tags/')
-        with:
-          files: ardour-windows-ucrt64.zip
-        env:
-          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
