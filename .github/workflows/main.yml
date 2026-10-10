@@ -159,79 +159,48 @@ jobs:
       # ------------------------------------------------------------
       # Install & Bundle Ardour
       # ------------------------------------------------------------
-      # - name: Install & Bundle Ardour
-      #   shell: msys2 {0}
-      #   run: |
-      #     set -euxo pipefail
-
-      #     # Create the final unified bin directory
-      #     mkdir -p installed_ardour/bin
-
-      #     # 1. Copy compiled Ardour executables and scanners
-      #     cp -fv build/gtk2_ardour/ardour*.exe installed_ardour/bin/ || true
-      #     cp -fv build/libs/fst/ardour-vst*.exe installed_ardour/bin/ || true
-      #     cp -fv build/luasession/*.exe installed_ardour/bin/ || true
-      #     cp -fv build/session_utils/*.exe installed_ardour/bin/ || true
-
-      #     # 2. Recursively find and copy all internal Ardour core DLLs from build sub-folders
-      #     find build -name "*.dll" -exec cp -fv {} installed_ardour/bin/ \; || true
-
-      #     # 3. Copy runtime UCRT64 dependency DLLs
-      #     cp -u /ucrt64/bin/*.dll installed_ardour/bin/ || true
-
-      #     # Verify that core DLLs and ardour.exe are present
-      #     echo "=== Verifying bundle bin contents ==="
-      #     ls -la installed_ardour/bin/ardour.dll installed_ardour/bin/canvs.dll installed_ardour/bin/ardour-*.exe || true
-
+      # ------------------------------------------------------------
+      # Install & Bundle Ardour Portable
+      # ------------------------------------------------------------
       - name: Install & Bundle Lean Ardour Portable
         shell: msys2 {0}
         run: |
           set -euxo pipefail
 
-          # Create clean directory structure
-          mkdir -p installed_ardour/bin
-          mkdir -p installed_ardour/share/ardour9
+          # 1. Let Waf correctly populate installed_ardour with compiled assets & configs
+          ./waf install
 
-          # 1. Copy compiled Ardour executables and scanners
+          # 2. Copy compiled core executables & binaries into bin/
           cp -fv build/gtk2_ardour/ardour*.exe installed_ardour/bin/ || true
           cp -fv build/libs/fst/ardour-vst*.exe installed_ardour/bin/ || true
           cp -fv build/luasession/*.exe installed_ardour/bin/ || true
           cp -fv build/session_utils/*.exe installed_ardour/bin/ || true
 
-          # 2. Copy internal Ardour core DLLs from build sub-folders
+          # 3. Copy internal Ardour core DLLs from build folder
           find build -name "*.dll" -exec cp -fv {} installed_ardour/bin/ \; || true
 
-          # 3. Copy ONLY the essential GUI, audio, and utility runtime DLLs (instead of all 600+)
-          # GTK, GLib, Cairo, Pango, Audio/MIDI, and Core dependencies
-          cp -fv /ucrt64/bin/libgtk-win32-2.0-0.dll installed_ardour/bin/ || true
-          cp -fv /ucrt64/bin/libgdk-win32-2.0-0.dll installed_ardour/bin/ || true
-          cp -fv /ucrt64/bin/libglib-2.0-0.dll installed_ardour/bin/ || true
-          cp -fv /ucrt64/bin/libgobject-2.0-0.dll installed_ardour/bin/ || true
-          cp -fv /ucrt64/bin/libcairo-2.dll installed_ardour/bin/ || true
-          cp -fv /ucrt64/bin/libpango-1.0-0.dll installed_ardour/bin/ || true
-          cp -fv /ucrt64/bin/libpangowin32-1.0-0.dll installed_ardour/bin/ || true
-          cp -fv /ucrt64/bin/libintl-8.dll installed_ardour/bin/ || true
-          cp -fv /ucrt64/bin/libiconv-2.dll installed_ardour/bin/ || true
-          cp -fv /ucrt64/bin/libsndfile-1.dll installed_ardour/bin/ || true
-          cp -fv /ucrt64/bin/libsamplerate-0.dll installed_ardour/bin/ || true
-          cp -fv /ucrt64/bin/liblo-7.dll installed_ardour/bin/ || true
-          cp -fv /ucrt64/bin/libjack64.dll installed_ardour/bin/ || true
+          # 4. Copy required GTK Theme Engines (Fixes clearlooks.rc error)
+          mkdir -p installed_ardour/lib/gtk-2.0/2.10.0/engines
+          cp -fv /ucrt64/lib/gtk-2.0/2.10.0/engines/*.dll installed_ardour/lib/gtk-2.0/2.10.0/engines/ || true
 
-          # 4. Copy the required source share/ folder assets (themes, fonts, configs)
-          cp -r share/* installed_ardour/share/ardour9/ || true
+          # 5. Copy ALL MSYS2 runtime dependencies (ensures no missing DLLs)
+          # Use -u (update/skip existing) so internal Ardour DLLs aren't overwritten
+          cp -u /ucrt64/bin/*.dll installed_ardour/bin/ || true
 
-          echo "=== Lean bundle ready ==="
-          ls -la installed_ardour/bin/
+          # 6. Include a root portable launcher script
+          cat << 'EOF' > installed_ardour/run.bat
+          @echo off
+          set "ARDOUR_DATA_PATH=%~dp0share\ardour9"
+          set "ARDOUR_CONFIG_PATH=%APPDATA%\Ardour9"
+          start "" "%~dp0bin\ardour-9.8.205.exe" %*
+          EOF
+
+          echo "=== Portable Bundle Complete ==="
+          ls -la installed_ardour/
 
       # ------------------------------------------------------------
       # Upload Artifact
       # ------------------------------------------------------------
-      # - name: Upload Full Build Folder Artifact
-      #   uses: actions/upload-artifact@v4
-      #   with:
-      #     name: Ardour-Full-Build
-      #     path: build/
-
       - name: Upload Organized Portable Artifact
         uses: actions/upload-artifact@v4
         with:
