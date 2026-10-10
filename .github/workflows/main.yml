@@ -41,10 +41,6 @@ jobs:
             mingw-w64-ucrt-x86_64-libsigc++
             mingw-w64-ucrt-x86_64-pango
             mingw-w64-ucrt-x86_64-pangomm
-            mingw-w64-ucrt-x86_64-gtk2
-            mingw-w64-ucrt-x86_64-gtkmm
-            mingw-w64-ucrt-x86_64-atk
-            mingw-w64-ucrt-x86_64-gdk-pixbuf2
             mingw-w64-ucrt-x86_64-libxml2
             mingw-w64-ucrt-x86_64-libsndfile
             mingw-w64-ucrt-x86_64-libsamplerate
@@ -60,6 +56,9 @@ jobs:
             mingw-w64-ucrt-x86_64-lv2
             mingw-w64-ucrt-x86_64-libarchive
             mingw-w64-ucrt-x86_64-aubio
+            mingw-w64-ucrt-x86_64-gtk2
+            mingw-w64-ucrt-x86_64-atk
+            mingw-w64-ucrt-x86_64-gdk-pixbuf2
             git
             make
             zip
