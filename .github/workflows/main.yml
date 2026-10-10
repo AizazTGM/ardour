@@ -142,9 +142,9 @@ jobs:
           ls -la installed_ardour/
 
       - name: Upload Raw Build & Install Artifacts
-      uses: actions/upload-artifact@v4
-      with:
-        name: Ardour-Raw-Build-And-Install
-        path: |
-          installed_ardour/
-          build/
+        uses: actions/upload-artifact@v4
+        with:
+          name: Ardour-Raw-Build-And-Install
+          path: |
+            installed_ardour/
+            build/
