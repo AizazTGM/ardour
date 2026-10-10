@@ -163,28 +163,37 @@ jobs:
         shell: msys2 {0}
         run: |
           set -euxo pipefail
-    
+
           # Create the final unified bin directory
           mkdir -p installed_ardour/bin
-    
-          # Copy compiled Ardour executables and scanners from their respective build folders
+
+          # 1. Copy compiled Ardour executables and scanners
           cp -fv build/gtk2_ardour/ardour*.exe installed_ardour/bin/ || true
           cp -fv build/libs/fst/ardour-vst*.exe installed_ardour/bin/ || true
           cp -fv build/luasession/*.exe installed_ardour/bin/ || true
           cp -fv build/session_utils/*.exe installed_ardour/bin/ || true
-    
-          # Copy all runtime UCRT64 dependency DLLs into the same folder
+
+          # 2. Recursively find and copy all internal Ardour core DLLs from build sub-folders
+          find build -name "*.dll" -exec cp -fv {} installed_ardour/bin/ \; || true
+
+          # 3. Copy runtime UCRT64 dependency DLLs
           cp -u /ucrt64/bin/*.dll installed_ardour/bin/ || true
-    
-          # Verify that ardour.exe exists in the target bundle folder
-          echo "=== Verifying final bin contents ==="
-          ls -la installed_ardour/bin/ardour*.exe
+
+          # Verify that core DLLs and ardour.exe are present
+          echo "=== Verifying bundle bin contents ==="
+          ls -la installed_ardour/bin/ardour.dll installed_ardour/bin/canvs.dll installed_ardour/bin/ardour-*.exe || true
 
       # ------------------------------------------------------------
       # Upload Artifact
       # ------------------------------------------------------------
-      - name: Upload Build Artifact
+      - name: Upload Full Build Folder Artifact
         uses: actions/upload-artifact@v4
         with:
-          name: Ardour-Windows-UCRT64
+          name: Ardour-Full-Build
+          path: build/
+
+      - name: Upload Organized Portable Artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: Ardour-Windows-UCRT64-Portable
           path: installed_ardour/
