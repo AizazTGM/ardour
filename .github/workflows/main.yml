@@ -162,32 +162,37 @@ jobs:
       # ------------------------------------------------------------
       # Install & Bundle Ardour Portable
       # ------------------------------------------------------------
+      # ------------------------------------------------------------
+      # Install & Bundle Ardour Portable
+      # ------------------------------------------------------------
       - name: Install & Bundle Lean Ardour Portable
         shell: msys2 {0}
         run: |
           set -euxo pipefail
 
-          # 1. Let Waf correctly populate installed_ardour with compiled assets & configs
+          # 1. Let Waf populate installed_ardour with share/ and lib/
           ./waf install
 
-          # 2. Copy compiled core executables & binaries into bin/
+          # 2. EXPLICITLY create the bin directory so cp doesn't fail
+          mkdir -p installed_ardour/bin
+
+          # 3. Copy compiled Ardour executables and scanners
           cp -fv build/gtk2_ardour/ardour*.exe installed_ardour/bin/ || true
           cp -fv build/libs/fst/ardour-vst*.exe installed_ardour/bin/ || true
           cp -fv build/luasession/*.exe installed_ardour/bin/ || true
           cp -fv build/session_utils/*.exe installed_ardour/bin/ || true
 
-          # 3. Copy internal Ardour core DLLs from build folder
+          # 4. Copy internal Ardour core DLLs from build folder
           find build -name "*.dll" -exec cp -fv {} installed_ardour/bin/ \; || true
 
-          # 4. Copy required GTK Theme Engines (Fixes clearlooks.rc error)
+          # 5. Copy required GTK Theme Engines
           mkdir -p installed_ardour/lib/gtk-2.0/2.10.0/engines
           cp -fv /ucrt64/lib/gtk-2.0/2.10.0/engines/*.dll installed_ardour/lib/gtk-2.0/2.10.0/engines/ || true
 
-          # 5. Copy ALL MSYS2 runtime dependencies (ensures no missing DLLs)
-          # Use -u (update/skip existing) so internal Ardour DLLs aren't overwritten
+          # 6. Copy ALL MSYS2 runtime dependencies into bin/
           cp -u /ucrt64/bin/*.dll installed_ardour/bin/ || true
 
-          # 6. Include a root portable launcher script
+          # 7. Include the root portable launcher script
           cat << 'EOF' > installed_ardour/run.bat
           @echo off
           set "ARDOUR_DATA_PATH=%~dp0share\ardour9"
@@ -197,6 +202,7 @@ jobs:
 
           echo "=== Portable Bundle Complete ==="
           ls -la installed_ardour/
+          ls -la installed_ardour/bin/
 
       # ------------------------------------------------------------
       # Upload Artifact
