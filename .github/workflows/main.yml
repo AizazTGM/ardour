@@ -59,6 +59,7 @@ jobs:
             mingw-w64-ucrt-x86_64-gtk2
             mingw-w64-ucrt-x86_64-atk
             mingw-w64-ucrt-x86_64-gdk-pixbuf2
+            mingw-w64-ucrt-x86_64-tree
             git
             make
             zip
@@ -148,7 +149,7 @@ jobs:
           
       - name: List Directory Contents
         run: |
-          ls -la D:/d/a/ardour/
+          tree D:/d/a/ardour/
 
       # - name: Upload Raw Build & Install Artifacts
       #   uses: actions/upload-artifact@v4
