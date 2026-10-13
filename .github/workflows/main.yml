@@ -147,10 +147,16 @@ jobs:
           echo "=== Installed Ardour Directory Contents ==="
           ls -la installed_ardour/
 
-      - name: Upload Raw Build & Install Artifacts
+      # - name: Upload Raw Build & Install Artifacts
+      #   uses: actions/upload-artifact@v4
+      #   with:
+      #     name: Ardour-Raw-Build-And-Install
+      #     path: |
+      #       installed_ardour/
+      #       build/
+
+      - name: Upload Ardour Directory
         uses: actions/upload-artifact@v4
         with:
-          name: Ardour-Raw-Build-And-Install
-          path: |
-            installed_ardour/
-            build/
+          name: ardour-compiled-output
+          path: D:/d/a/ardour/ardour/
