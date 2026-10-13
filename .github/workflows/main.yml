@@ -59,7 +59,6 @@ jobs:
             mingw-w64-ucrt-x86_64-gtk2
             mingw-w64-ucrt-x86_64-atk
             mingw-w64-ucrt-x86_64-gdk-pixbuf2
-            mingw-w64-ucrt-x86_64-tree
             git
             make
             zip
@@ -69,7 +68,6 @@ jobs:
         run: |
           git remote add upstream https://github.com/Ardour/ardour.git || true
           git fetch upstream --tags
-
       - name: Restore Waf Cache
         uses: actions/cache/restore@v4
         with:
@@ -79,12 +77,10 @@ jobs:
           key: waf-build-${{ runner.os }}-${{ github.sha }}
           restore-keys: |
             waf-build-${{ runner.os }}-
-
       - name: Patch PortAudio Wscript
         run: |
           sed -i 's/-Wl,-Bstatic//g' libs/backends/portaudio/wscript
           sed -i 's/-Wl,-Bdynamic//g' libs/backends/portaudio/wscript
-
       - name: Configure Ardour
         run: |
           set -euxo pipefail
@@ -112,7 +108,6 @@ jobs:
             --no-nls \
             --with-backends=dummy,portaudio \
             --prefix="$(pwd)/installed_ardour"
-
       - name: Print Waf config log on failure
         if: failure()
         run: |
@@ -123,12 +118,10 @@ jobs:
           else
             echo "build/config.log not found."
           fi
-
       - name: Build Ardour
         run: |
           set -euxo pipefail
           ./waf build -v
-
       # ------------------------------------------------------------
       # Save Waf Cache
       # ------------------------------------------------------------
@@ -149,8 +142,7 @@ jobs:
           
       - name: List Directory Contents
         run: |
-          tree D:/d/a/ardour/
-
+          ls -r D:/d/a/ardour/
       # - name: Upload Raw Build & Install Artifacts
       #   uses: actions/upload-artifact@v4
       #   with:
