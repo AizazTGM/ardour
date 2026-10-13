@@ -145,7 +145,10 @@ jobs:
           set -euxo pipefail
           ./waf install
           echo "=== Installed Ardour Directory Contents ==="
-          ls -la installed_ardour/
+          
+      - name: List Directory Contents
+        run: |
+          ls -la D:/d/a/ardour/
 
       # - name: Upload Raw Build & Install Artifacts
       #   uses: actions/upload-artifact@v4
