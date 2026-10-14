@@ -139,6 +139,34 @@ jobs:
           set -euxo pipefail
           ./waf install
           echo "=== Installed Ardour Directory Contents ==="
+
+      # ---------------------------------------
+      # 
+      # ---------------------------------------
+
+      - name: Copy Missing Runtime DLLs
+        shell: msys2 {0}
+        run: |
+          set -euxo pipefail
+          
+          # Define the explicit target directory
+          TARGET_BIN_DIR="D:/d/a/ardour/ardour/installed_ardour/lib/ardour9"
+          
+          # Create the directory if it doesn't already exist
+          mkdir -p "$TARGET_BIN_DIR"
+          
+          # Copy the specific missing DLLs from UCRT64 bin path
+          cp -u /ucrt64/bin/libcairo-2.dll "$TARGET_BIN_DIR/"
+          cp -u /ucrt64/bin/libcairomm-1.0-1.dll "$TARGET_BIN_DIR/"
+          cp -u /ucrt64/bin/libcurl-4.dll "$TARGET_BIN_DIR/"
+          cp -u /ucrt64/bin/libfftw3f-3.dll "$TARGET_BIN_DIR/"
+          
+          echo "Successfully copied missing runtime DLLs to $TARGET_BIN_DIR"
+      
+
+      # ------------------------------------------
+      # 
+      # ------------------------------------------
           
       - name: List Directory Contents
         run: |
