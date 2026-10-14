@@ -1,0 +1,100 @@
+name: Cross-Compile Ardour Windows (x64)
+
+on:
+  push:
+    branches: [ main, master ]
+  pull_request:
+    branches: [ main, master ]
+  workflow_dispatch:
+
+jobs:
+  build-windows-cross:
+    name: Build Ardour (MinGW x86_64)
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout Repository
+        uses: actions/checkout@v4
+        with:
+          submodules: recursive
+
+      - name: Restore Git LFS Cache
+        uses: actions/cache@v4
+        with:
+          path: .git/lfs
+          key: ${{ runner.os }}-lfs-${{ hashFiles('.gitmodules') }}
+          restore-keys: |
+            ${{ runner.os }}-lfs-
+
+      - name: Pull Git LFS Files
+        run: |
+          git lfs pull || true
+
+      - name: Cache MSYS2 Package Archives
+        uses: actions/cache@v4
+        with:
+          path: ~/.cache/msys2
+          key: ${{ runner.os }}-msys2-pkgs-${{ hashFiles('.github/workflows/main.yml') }}
+          restore-keys: |
+            ${{ runner.os }}-msys2-pkgs-
+
+      - name: Setup MSYS2 UCRT64 Environment
+        uses: msys2/setup-msys2@v2
+        with:
+          msystem: UCRT64
+          update: true
+          install: >-
+            git
+            mingw-w64-ucrt-x86_64-gcc
+            mingw-w64-ucrt-x86_64-gcc-libs
+            mingw-w64-ucrt-x86_64-pkgconf
+            mingw-w64-ucrt-x86_64-python
+            mingw-w64-ucrt-x86_64-glib2
+            mingw-w64-ucrt-x86_64-gtk2
+            mingw-w64-ucrt-x86_64-boost
+            mingw-w64-ucrt-x86_64-fftw
+            mingw-w64-ucrt-x86_64-libxml2
+            mingw-w64-ucrt-x86_64-libarchive
+            mingw-w64-ucrt-x86_64-libsamplerate
+            mingw-w64-ucrt-x86_64-libsndfile
+            mingw-w64-ucrt-x86_64-portaudio
+            mingw-w64-ucrt-x86_64-vamp-plugin-sdk
+            mingw-w64-ucrt-x86_64-aubio
+            mingw-w64-ucrt-x86_64-taglib
+            mingw-w64-ucrt-x86_64-cppunit
+
+      - name: Cache Waf Build Objects
+        uses: actions/cache@v4
+        with:
+          path: |
+            build/.lock-wscripts
+            build/default/*.o
+            build/default/*.obj
+            .waf3
+            ~/.cache/waf
+          key: ${{ runner.os }}-waf-mingw64-${{ hashFiles('wscript', '**/wscript') }}-${{ github.sha }}
+          restore-keys: |
+            ${{ runner.os }}-waf-mingw64-${{ hashFiles('wscript', '**/wscript') }}-
+            ${{ runner.os }}-waf-mingw64-
+
+      - name: Configure Waf
+        shell: msys2 {0}
+        run: |
+          python waf configure --dist-target=mingw --prefix=/install_root
+
+      - name: Build Ardour
+        shell: msys2 {0}
+        run: |
+          python waf build -j$(nproc)
+
+      - name: Stage Install Output
+        shell: msys2 {0}
+        run: |
+          python waf install
+
+      - name: Upload Windows 64-bit Binaries
+        uses: actions/upload-artifact@v4
+        with:
+          name: ardour-windows-x64
+          path: ${{ github.workspace }}/install_root/
+          retention-days: 7
